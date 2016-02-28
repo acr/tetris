@@ -1,2 +1,2 @@
-add_executable(nt main.cpp)
+add_executable(nt main.cpp TransformStack.cpp DrawableHierarchy.cpp NullDrawable.cpp HollowRectangle.cpp FilledSquare.cpp PieceI.cpp)
 target_link_libraries(nt ${GL_LIB} ${SDL2_MAIN} ${SDL2_LIB} ${GLEW_LIBRARY} gl_utils)
