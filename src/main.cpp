@@ -3,9 +3,10 @@
 
 #include <iostream>
 #include <math.h>
+#include <vector>
 
-static int width = 512;
-static int height = 1024;
+static const int width = 512;
+static const int height = 1024;
 
 bool handle_user_input();
 
@@ -15,16 +16,84 @@ public:
   virtual void preLinkCallback(GLint shader_program) { }
 };
 
-class Square {
+class TransformStack {
+private:
+  std::vector<glm::mat4> xfStack;
+  glm::mat4 xfMtx;
+  bool isDirty;
+
+public:
+  TransformStack() : isDirty(false) {}
+
+  void push(const glm::mat4& mtx) {
+    xfStack.push_back(mtx);
+    isDirty = true;
+  }
+
+  glm::mat4 pop() {
+    glm::mat4 rv;
+    if(!xfStack.empty()) {
+      rv = xfStack.back();
+      xfStack.pop_back();
+    }
+    isDirty = true;
+    return rv;
+  }    
+
+  const glm::mat4& getXfMtx() {
+    if(isDirty) {
+      xfMtx = glm::mat4();
+      for(std::vector<glm::mat4>::const_iterator it = xfStack.begin();
+	  it != xfStack.end(); ++it) {
+	xfMtx *= *it;
+      }
+
+      isDirty = false;
+    }
+
+    return xfMtx;
+  }
+};
+
+class DrawableHierarchy {
+protected:
+  std::vector<DrawableHierarchy*> drawables;
+  glm::mat4 transform_matrix;
+  virtual void renderSelf(const glm::mat4& xfMtx)=0;
+
+public:
+  void renderHierarchy(TransformStack& transform_stack) {
+    transform_stack.push(transform_matrix);
+    for(std::vector<DrawableHierarchy*>::iterator it = drawables.begin();
+	it != drawables.end(); ++it) {
+      (*it)->renderHierarchy(transform_stack);
+    }
+    renderSelf(transform_stack.getXfMtx());
+    transform_stack.pop();
+  }
+
+  void addDrawable(DrawableHierarchy* drawable) {
+    drawables.push_back(drawable);
+  }
+};
+
+class HierarchyRoot : public DrawableHierarchy {
+protected:
+  virtual void renderSelf(const glm::mat4& xfMtx) { }
+
+public:
+  
+};
+
+class FilledSquare : public DrawableHierarchy {
 private:
   GLuint model_vao;
   GLint model_uniform_location;
   GLuint vertex_vbo;
   GLuint color_vbo;
-  glm::vec2 position;
   glm::vec3 color;
 
-  void init_vao() {
+  void init_vao(float half_width) {
     glGenBuffers(1, &vertex_vbo);
     dsp::checkGL();
     glGenBuffers(1, &color_vbo);
@@ -33,13 +102,13 @@ private:
     dsp::checkGL();
 
     float triangles[] = {
-      -0.5f, -0.5f,
-      0.5f, 0.5f,
-      -0.5f, 0.5f,
+      -half_width, -half_width,
+      half_width, half_width,
+      -half_width, half_width,
 
-      -0.5f, -0.5f,
-      0.5f, -0.5f,
-      0.5f, 0.5f,
+      -half_width, -half_width,
+      half_width, -half_width,
+      half_width, half_width,
     };
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
@@ -77,32 +146,33 @@ private:
     dsp::checkGL();
   }
 
-public:
-  explicit Square(GLint mul) : model_uniform_location(mul) { init_vao(); }
-  Square(GLint mul, const glm::vec2& p, const glm::vec3& c) :
-    model_uniform_location(mul), position(p), color(c) { init_vao(); }
-
-  void render() {
-    glm::mat4 model_mat = glm::translate(glm::mat4(), glm::vec3(position, 0.0f));
-    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(model_mat));
+protected:
+  virtual void renderSelf(const glm::mat4& xfMtx) {
+    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(xfMtx));
     dsp::checkGL();
     glBindVertexArray(model_vao);
     dsp::checkGL();
     glDrawArrays(GL_TRIANGLES, 0, 6);
     dsp::checkGL();
   }
+
+public:
+  FilledSquare(GLint mul, const glm::vec2& p, float half_width, const glm::vec3& c) :
+    model_uniform_location(mul), color(c) {
+    init_vao(half_width);
+    transform_matrix = glm::translate(glm::mat4(), glm::vec3(p, 0.0f));
+  }
 };
 
-class Rectangle {
+class HollowRectangle : public DrawableHierarchy {
+private:
   GLint model_uniform_location;
   GLuint model_vao;
   GLuint vertex_vbo;
   GLuint color_vbo;
-  glm::vec2 lower_left;
-  glm::vec2 upper_right;
   glm::vec3 color;
   
-  void init_vao() {
+  void init_vao(const glm::vec2& lower_left, const glm::vec2& upper_right) {
     glGenBuffers(1, &vertex_vbo);
     dsp::checkGL();
     glGenBuffers(1, &color_vbo);
@@ -161,18 +231,28 @@ class Rectangle {
     dsp::checkGL();
   }
 
-public:
-  Rectangle(GLint mul, const glm::vec2& ll, const glm::vec2& ur, const glm::vec3& c) :
-    model_uniform_location(mul), lower_left(ll), upper_right(ur), color(c) { init_vao(); }
-
-  void render() {
-    glm::mat4 model_mat;
-    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(model_mat));
+protected:
+  virtual void renderSelf(const glm::mat4& xfMtx) {
+    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(xfMtx));
     dsp::checkGL();
     glBindVertexArray(model_vao);
     dsp::checkGL();
     glDrawArrays(GL_LINES, 0, 8);
     dsp::checkGL();
+  }
+
+public:
+  HollowRectangle(GLint mul, const glm::vec2& center_point, float half_width, float half_height, const glm::vec3& c) :
+    model_uniform_location(mul), color(c) {
+    transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
+    glm::vec2 lower_left(-half_width, -half_height);
+    glm::vec2 upper_right(half_width, half_height);
+    init_vao(lower_left, upper_right);
+  }
+
+  void render() {
+    glm::mat4 model_mat;
+    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(model_mat));
   }
 
 };
@@ -258,15 +338,18 @@ int main() {
   dsp::printAll(shader_program);
 
 
-  // Square s(model_mat_location, glm::vec2(0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-  Rectangle r(model_mat_location, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 2.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+  HierarchyRoot root;
+  HollowRectangle r(model_mat_location, glm::vec2(0.5f, 1.0f), 0.5f, 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+  root.addDrawable(&r);
+  FilledSquare s(model_mat_location, glm::vec2(0.0f, 0.0f), 0.1f, glm::vec3(1.0f, 0.0f, 0.0f));
+  r.addDrawable(&s);
   do {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, width, height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    // s.render();
-    r.render();
+    TransformStack ts;
+    root.renderHierarchy(ts);
 
     SDL_GL_SwapWindow(window);
     SDL_Delay(20);
