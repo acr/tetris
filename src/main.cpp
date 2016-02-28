@@ -9,14 +9,13 @@
 #include "FilledSquare.h"
 #include "ActivePiece.h"
 #include "PieceI.h"
+#include "GameUI.h"
 #include <iostream>
 #include <math.h>
 #include <vector>
-#include <queue>
 
 static const int width = 512;
 static const int height = 1024;
-static Uint32 update_event_type = 0;
 
 using namespace gfx;
 
@@ -25,9 +24,6 @@ public:
   virtual ~PLC() {}
   virtual void preLinkCallback(GLint shader_program) { }
 };
-
-bool handle_user_input(ActivePiece* piece);
-Uint32 timer_callback(Uint32 interval, void* param);
 
 int main() {
   if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
@@ -106,88 +102,11 @@ int main() {
   dsp::checkGL();
   dsp::printAll(shader_program);
 
-  NullDrawable root;
-  const float block_area_width = 1.0f;
-  const float block_area_height = 2.0f;
-  HollowRectangle block_area_outline(model_mat_location, glm::vec2(0.5f, 1.0f),
-				     block_area_width / 2.0f, block_area_height / 2.0f,
-				     glm::vec3(0.0f, 1.0f, 0.0f));
-  root.addDrawable(&block_area_outline);
-  NullDrawable block_scale_area(
-    glm::scale(glm::mat4(), glm::vec3(1.0f / 12.0f, 1.0f / 12.0f, 1.0f)));
-  block_area_outline.addDrawable(&block_scale_area);
-  PieceI ipiece(model_mat_location, 0, 12);
-  block_scale_area.addDrawable(&ipiece);
+  gui::GameUI ui(window, model_mat_location, width, height);
+  ui.run();
 
-  update_event_type = SDL_RegisterEvents(1);
-  if(update_event_type == (Uint32)-1) {
-    std::cerr << "Unable to register custom update event" << std::endl;
-    return 5;
-  }
-
-  Uint32 delay = 1000;
-  SDL_AddTimer(delay, timer_callback, 0);
-  
-
-  do {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0, 0, width, height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-    TransformStack ts;
-    root.renderHierarchy(ts);
-
-    SDL_GL_SwapWindow(window);
-    SDL_Delay(20);
-  } while(handle_user_input(&ipiece));
+  SDL_GL_DeleteContext(glContext);
+  SDL_Quit();
 
   return 0;
-}
-
-bool handle_user_input(ActivePiece* piece) {
-  bool is_quit = false;
-  SDL_Event sdl_event;
-  while(SDL_PollEvent(&sdl_event)) {
-    switch(sdl_event.type) {
-    case SDL_QUIT: {
-      is_quit = true;
-      break;
-    }
-
-    case SDL_KEYUP: {
-      if(sdl_event.key.keysym.sym == SDLK_ESCAPE) {
-	is_quit = true;
-      }
-      break;
-    }
-
-    case SDL_KEYDOWN: {
-      if(sdl_event.key.keysym.sym == SDLK_LEFT) {
-	piece->moveLeft();
-      }
-      else if(sdl_event.key.keysym.sym == SDLK_RIGHT) {
-	piece->moveRight();
-      }
-      break;
-    }
-
-    default: {
-      if(sdl_event.type == update_event_type) {
-	piece->moveDown();
-      }
-      break;
-    }
-    }
-  }
-
-
-  return !is_quit;
-}
-
-Uint32 timer_callback(Uint32 interval, void* param) {
-  SDL_Event event;
-  SDL_memset(&event, 0, sizeof(event));
-  event.type = update_event_type;
-  SDL_PushEvent(&event);
-  return interval;
 }

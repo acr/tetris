@@ -12,9 +12,10 @@ private:
   int x;
   int y;
   int num_rotations;
+  const float box_length;
   std::vector<HollowRectangle*> outlines;
 
-  void regen_xform_mtx();
+  void regen_positions();
 public:
   PieceI(GLuint mul, int _x, int _y);
   virtual ~PieceI();

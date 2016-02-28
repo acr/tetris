@@ -24,6 +24,7 @@ public:
   FilledSquare(GLint mul, const glm::vec2& p, float hw, const glm::vec3& c);
   virtual ~FilledSquare();
   bool isIntersectingWith(const FilledSquare& otherShape) const;
+  void set_position(const glm::vec2& p);
 };
 
 }

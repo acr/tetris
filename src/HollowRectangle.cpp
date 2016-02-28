@@ -70,8 +70,10 @@ void HollowRectangle::renderSelf(const glm::mat4& xfMtx) {
   dsp::checkGL();
 }
 
-HollowRectangle::HollowRectangle(GLint mul, const glm::vec2& center_point, float half_width, float half_height, const glm::vec3& c) :
-  model_uniform_location(mul), color(c) {
+HollowRectangle::HollowRectangle(GLint mul, const glm::vec2& p, float half_width, float half_height, const glm::vec3& c) :
+  model_uniform_location(mul),
+  color(c),
+  center_point(p) {
   transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
   glm::vec2 lower_left(-half_width, -half_height);
   glm::vec2 upper_right(half_width, half_height);
@@ -82,9 +84,9 @@ HollowRectangle::~HollowRectangle() {
 
 }
 
-void HollowRectangle::render() {
-  glm::mat4 model_mat;
-  glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(model_mat));
+void HollowRectangle::set_position(const glm::vec2& p) {
+  center_point = p;
+  transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
 }
 
 }

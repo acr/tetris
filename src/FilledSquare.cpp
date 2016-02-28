@@ -67,7 +67,7 @@ void FilledSquare::renderSelf(const glm::mat4& xfMtx) {
 FilledSquare::FilledSquare(GLint mul, const glm::vec2& p, float hw, const glm::vec3& c) :
   model_uniform_location(mul), color(c), center_point(p), half_width(hw) {
   init_vao();
-  transform_matrix = glm::translate(glm::mat4(), glm::vec3(p, 0.0f));
+  transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
 }
 
 FilledSquare::~FilledSquare() {}
@@ -77,5 +77,10 @@ bool FilledSquare::isIntersectingWith(const FilledSquare& otherShape) const {
   const float combined_halfwidth = half_width + otherShape.half_width;
   return centerpoint_distance < combined_halfwidth;
 }
+
+void FilledSquare::set_position(const glm::vec2& p) {
+  center_point = p;
+  transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
+}    
 
 }
