@@ -62,6 +62,8 @@ protected:
   virtual void renderSelf(const glm::mat4& xfMtx)=0;
 
 public:
+  virtual ~DrawableHierarchy() {}
+
   void renderHierarchy(TransformStack& transform_stack) {
     transform_stack.push(transform_matrix);
     for(std::vector<DrawableHierarchy*>::iterator it = drawables.begin();
@@ -77,91 +79,17 @@ public:
   }
 };
 
-class HierarchyRoot : public DrawableHierarchy {
+class NullDrawable : public DrawableHierarchy {
 protected:
   virtual void renderSelf(const glm::mat4& xfMtx) { }
 
 public:
-  
-};
-
-class FilledSquare : public DrawableHierarchy {
-private:
-  GLuint model_vao;
-  GLint model_uniform_location;
-  GLuint vertex_vbo;
-  GLuint color_vbo;
-  glm::vec3 color;
-
-  void init_vao(float half_width) {
-    glGenBuffers(1, &vertex_vbo);
-    dsp::checkGL();
-    glGenBuffers(1, &color_vbo);
-    dsp::checkGL();
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
-    dsp::checkGL();
-
-    float triangles[] = {
-      -half_width, -half_width,
-      half_width, half_width,
-      -half_width, half_width,
-
-      -half_width, -half_width,
-      half_width, -half_width,
-      half_width, half_width,
-    };
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
-    dsp::checkGL();
-
-    glBindBuffer(GL_ARRAY_BUFFER, color_vbo);
-    dsp::checkGL();
-    
-    float colors[] = {
-      color.r, color.g, color.b,
-      color.r, color.g, color.b,
-      color.r, color.g, color.b,
-
-      color.r, color.g, color.b,
-      color.r, color.g, color.b,
-      color.r, color.g, color.b,
-    };      
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-    dsp::checkGL();
-
-    glGenVertexArrays(1, &model_vao);
-    dsp::checkGL();
-    glBindVertexArray(model_vao);
-    dsp::checkGL();
-    glEnableVertexAttribArray(0);
-    dsp::checkGL();
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
-    dsp::checkGL();
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    dsp::checkGL();
-    glEnableVertexAttribArray(1);
-    dsp::checkGL();
-    glBindBuffer(GL_ARRAY_BUFFER, color_vbo);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    dsp::checkGL();
+  NullDrawable() {}
+  explicit NullDrawable(const glm::mat4& xformMtx) {
+    transform_matrix = xformMtx;
   }
 
-protected:
-  virtual void renderSelf(const glm::mat4& xfMtx) {
-    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(xfMtx));
-    dsp::checkGL();
-    glBindVertexArray(model_vao);
-    dsp::checkGL();
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    dsp::checkGL();
-  }
-
-public:
-  FilledSquare(GLint mul, const glm::vec2& p, float half_width, const glm::vec3& c) :
-    model_uniform_location(mul), color(c) {
-    init_vao(half_width);
-    transform_matrix = glm::translate(glm::mat4(), glm::vec3(p, 0.0f));
-  }
+  virtual ~NullDrawable() {}
 };
 
 class HollowRectangle : public DrawableHierarchy {
@@ -250,12 +178,228 @@ public:
     init_vao(lower_left, upper_right);
   }
 
+  virtual ~HollowRectangle() {}
+
   void render() {
     glm::mat4 model_mat;
     glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(model_mat));
   }
 
 };
+
+class FilledSquare : public DrawableHierarchy {
+private:
+  GLuint model_vao;
+  GLint model_uniform_location;
+  GLuint vertex_vbo;
+  GLuint color_vbo;
+  glm::vec3 color;
+  glm::vec2 center_point;
+  float half_width;
+
+  void init_vao() {
+    glGenBuffers(1, &vertex_vbo);
+    dsp::checkGL();
+    glGenBuffers(1, &color_vbo);
+    dsp::checkGL();
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
+    dsp::checkGL();
+
+    float triangles[] = {
+      -half_width, -half_width,
+      half_width, half_width,
+      -half_width, half_width,
+
+      -half_width, -half_width,
+      half_width, -half_width,
+      half_width, half_width,
+    };
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
+    dsp::checkGL();
+
+    glBindBuffer(GL_ARRAY_BUFFER, color_vbo);
+    dsp::checkGL();
+    
+    float colors[] = {
+      color.r, color.g, color.b,
+      color.r, color.g, color.b,
+      color.r, color.g, color.b,
+
+      color.r, color.g, color.b,
+      color.r, color.g, color.b,
+      color.r, color.g, color.b,
+    };      
+    glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+    dsp::checkGL();
+
+    glGenVertexArrays(1, &model_vao);
+    dsp::checkGL();
+    glBindVertexArray(model_vao);
+    dsp::checkGL();
+    glEnableVertexAttribArray(0);
+    dsp::checkGL();
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
+    dsp::checkGL();
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    dsp::checkGL();
+    glEnableVertexAttribArray(1);
+    dsp::checkGL();
+    glBindBuffer(GL_ARRAY_BUFFER, color_vbo);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    dsp::checkGL();
+  }
+
+protected:
+  virtual void renderSelf(const glm::mat4& xfMtx) {
+    glUniformMatrix4fv(model_uniform_location, 1, 0, glm::value_ptr(xfMtx));
+    dsp::checkGL();
+    glBindVertexArray(model_vao);
+    dsp::checkGL();
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    dsp::checkGL();
+  }
+
+public:
+  FilledSquare(GLint mul, const glm::vec2& p, float hw, const glm::vec3& c) :
+    model_uniform_location(mul), color(c), center_point(p), half_width(hw) {
+    init_vao();
+    transform_matrix = glm::translate(glm::mat4(), glm::vec3(p, 0.0f));
+  }
+
+  virtual ~FilledSquare() { }
+
+  bool isIntersectingWith(const FilledSquare& otherShape) const {
+    const float centerpoint_distance = glm::length(center_point - otherShape.center_point);
+    const float combined_halfwidth = half_width + otherShape.half_width;
+    return centerpoint_distance < combined_halfwidth;
+  }
+};
+
+class ActivePiece : public DrawableHierarchy {
+protected:
+  std::vector<FilledSquare*> componentParts;
+
+  virtual void renderSelf(const glm::mat4& xfMtx) {}
+
+public:
+  virtual ~ActivePiece() {};
+
+  bool isIntersectingWith(const FilledSquare& otherSquare) {
+    for(std::vector<FilledSquare*>::const_iterator it = componentParts.begin();
+	it != componentParts.end(); ++it) {
+      if((*it)->isIntersectingWith(otherSquare)) {
+	return true;
+      }
+    }
+    return false;
+  }
+
+  virtual void moveDown()=0;
+  virtual void moveUp()=0;
+  virtual void rotate()=0;
+  virtual void moveLeft()=0;
+  virtual void moveRight()=0;
+};
+
+class PieceI : public ActivePiece {
+private:
+  GLuint model_uniform_location;
+  int x;
+  int y;
+  int num_rotations;
+  std::vector<HollowRectangle*> outlines;
+
+  void regen_xform_mtx() {
+    transform_matrix = glm::rotate(
+      glm::translate(glm::mat4(), glm::vec3(static_cast<float>(x), static_cast<float>(y), 0.0f)),
+      glm::radians(static_cast<float>(num_rotations * M_PI / 2.0)),
+      glm::vec3(0.0f, 0.0f, 1.0f));
+  }
+
+public:
+  PieceI(GLuint mul, int _x, int _y) :
+    model_uniform_location(mul),
+    x(_x),
+    y(_y),
+    num_rotations(0) {
+    regen_xform_mtx();
+    const float box_length = 1.0f;
+
+    const glm::vec3 blue(0.0f, 0.0f, 0.5f);
+    componentParts.push_back(
+      new FilledSquare(mul, glm::vec2(-1.5f * box_length, -0.5f * box_length),
+		       box_length / 2.0f, blue));
+    componentParts.push_back(
+      new FilledSquare(mul, glm::vec2(-0.5f * box_length, -0.5f * box_length),
+		       box_length / 2.0f, blue));
+    componentParts.push_back(
+      new FilledSquare(mul, glm::vec2(0.5f * box_length, -0.5f * box_length),
+		       box_length / 2.0f, blue));
+    componentParts.push_back(
+      new FilledSquare(mul, glm::vec2(1.5f * box_length, -0.5f * box_length),
+		       box_length / 2.0f, blue));
+
+    addDrawable(componentParts.at(0));
+    addDrawable(componentParts.at(1));
+    addDrawable(componentParts.at(2));
+    addDrawable(componentParts.at(3));
+
+    const glm::vec3 white(1.0f, 1.0f, 1.0f);
+    outlines.push_back(
+      new HollowRectangle(mul, glm::vec2(-1.5f * box_length, -0.5f * box_length), box_length / 2.0f, box_length / 2.0f, white));
+    outlines.push_back(
+      new HollowRectangle(mul, glm::vec2(-0.5f * box_length, -0.5f * box_length), box_length / 2.0f, box_length / 2.0f, white));
+    outlines.push_back(
+      new HollowRectangle(mul, glm::vec2(0.5f * box_length, -0.5f * box_length), box_length / 2.0f, box_length / 2.0f, white));
+    outlines.push_back(
+      new HollowRectangle(mul, glm::vec2(1.5f * box_length, -0.5f * box_length), box_length / 2.0f, box_length / 2.0f, white));
+
+    addDrawable(outlines.at(0));
+    addDrawable(outlines.at(1));
+    addDrawable(outlines.at(2));
+    addDrawable(outlines.at(3));
+  }
+
+  virtual ~PieceI() {
+    for(std::vector<FilledSquare*>::iterator it = componentParts.begin();
+	it != componentParts.end(); ++it) {
+      delete *it;
+    }
+    componentParts.clear();
+
+    for(std::vector<HollowRectangle*>::iterator it = outlines.begin();
+	it != outlines.end(); ++it) {
+      delete *it;
+    }
+    outlines.clear();
+  }
+
+  virtual void moveDown() {
+    y--;
+    regen_xform_mtx();
+  }
+
+  virtual void moveUp() {
+    y++;
+  }
+
+  virtual void rotate() {
+    num_rotations = (num_rotations + 1) % 4;
+    regen_xform_mtx();
+  }
+
+  virtual void moveLeft() {
+    x--;
+    regen_xform_mtx();
+  }
+
+  virtual void moveRight() {
+    x++;
+    regen_xform_mtx();
+  }
+};
+
 
 int main() {
   if(SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -293,11 +437,8 @@ int main() {
   glGetError();
   dsp::printGLInfo();
 
-  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_NEVER);	// Ignore Z depth values, so that objects are drawn back to front
   dsp::checkGL();
-  glDepthFunc(GL_LESS);
-  dsp::checkGL();
-
   glEnable(GL_CULL_FACE);
   dsp::checkGL();
   glCullFace(GL_BACK);
@@ -337,12 +478,18 @@ int main() {
   dsp::checkGL();
   dsp::printAll(shader_program);
 
-
-  HierarchyRoot root;
-  HollowRectangle r(model_mat_location, glm::vec2(0.5f, 1.0f), 0.5f, 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-  root.addDrawable(&r);
-  FilledSquare s(model_mat_location, glm::vec2(0.0f, 0.0f), 0.1f, glm::vec3(1.0f, 0.0f, 0.0f));
-  r.addDrawable(&s);
+  NullDrawable root;
+  const float block_area_width = 1.0f;
+  const float block_area_height = 2.0f;
+  HollowRectangle block_area_outline(model_mat_location, glm::vec2(0.5f, 1.0f),
+				     block_area_width / 2.0f, block_area_height / 2.0f,
+				     glm::vec3(0.0f, 1.0f, 0.0f));
+  root.addDrawable(&block_area_outline);
+  NullDrawable block_scale_area(
+    glm::scale(glm::mat4(), glm::vec3(1.0f / 12.0f, 1.0f / 12.0f, 1.0f)));
+  block_area_outline.addDrawable(&block_scale_area);
+  PieceI ipiece(model_mat_location, 0, 0);
+  block_scale_area.addDrawable(&ipiece);
   do {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, width, height);
