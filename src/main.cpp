@@ -7,8 +7,7 @@
 
 static const int width = 512;
 static const int height = 1024;
-
-bool handle_user_input();
+static Uint32 update_event_type = 0;
 
 class PLC : public dsp::PreLinkCallback {
 public:
@@ -400,9 +399,11 @@ public:
   }
 };
 
+bool handle_user_input(ActivePiece* piece);
+Uint32 timer_callback(Uint32 interval, void* param);
 
 int main() {
-  if(SDL_Init(SDL_INIT_VIDEO) != 0) {
+  if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
     std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
     return 1;
   }
@@ -488,8 +489,17 @@ int main() {
   NullDrawable block_scale_area(
     glm::scale(glm::mat4(), glm::vec3(1.0f / 12.0f, 1.0f / 12.0f, 1.0f)));
   block_area_outline.addDrawable(&block_scale_area);
-  PieceI ipiece(model_mat_location, 0, 0);
+  PieceI ipiece(model_mat_location, 0, 12);
   block_scale_area.addDrawable(&ipiece);
+
+  update_event_type = SDL_RegisterEvents(1);
+  if(update_event_type == (Uint32)-1) {
+    std::cerr << "Unable to register custom update event" << std::endl;
+    return 5;
+  }
+
+  Uint32 delay = 1000;
+  SDL_AddTimer(delay, timer_callback, 0);
   do {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, width, height);
@@ -500,12 +510,12 @@ int main() {
 
     SDL_GL_SwapWindow(window);
     SDL_Delay(20);
-  } while(handle_user_input());
+  } while(handle_user_input(&ipiece));
 
   return 0;
 }
 
-bool handle_user_input() {
+bool handle_user_input(ActivePiece* piece) {
   bool is_quit = false;
   SDL_Event sdl_event;
   while(SDL_PollEvent(&sdl_event)) {
@@ -522,12 +532,33 @@ bool handle_user_input() {
       break;
     }
 
-    default: {
+    case SDL_KEYDOWN: {
+      if(sdl_event.key.keysym.sym == SDLK_LEFT) {
+	piece->moveLeft();
+      }
+      else if(sdl_event.key.keysym.sym == SDLK_RIGHT) {
+	piece->moveRight();
+      }
       break;
     }
 
+    default: {
+      if(sdl_event.type == update_event_type) {
+	piece->moveDown();
+      }
+      break;
+    }
     }
   }
 
+
   return !is_quit;
+}
+
+Uint32 timer_callback(Uint32 interval, void* param) {
+  SDL_Event event;
+  SDL_memset(&event, 0, sizeof(event));
+  event.type = update_event_type;
+  SDL_PushEvent(&event);
+  return interval;
 }
