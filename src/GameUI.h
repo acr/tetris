@@ -5,6 +5,7 @@
 #include "gl_utils.h"
 #include "DrawableHierarchy.h"
 #include "ActivePiece.h"
+#include "NullDrawable.h"
 #include "Grid.h"
 #include <SDL2/SDL_mutex.h>
 #include <SDL2/SDL_thread.h>
@@ -28,11 +29,15 @@ private:
   const float block_area_height;
   const int width;
   const int height;
-  Grid grid;
+  gfx::Grid* grid;
+  gfx::NullDrawable* block_scale_area;
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 
   bool handle_user_input();
+  void scanGridForMatches();
+  bool isGameOver();
+  gfx::ActivePiece* generateNewPiece();
 
 public:
   GameUI(SDL_Window* window, GLint mul, int _width, int _height);

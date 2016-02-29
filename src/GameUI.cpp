@@ -1,5 +1,4 @@
 #include "GameUI.h"
-#include "NullDrawable.h"
 #include "HollowRectangle.h"
 #include "PieceI.h"
 
@@ -16,7 +15,8 @@ GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
   block_area_height(2.0f),
   width(_width),
   height(_height),
-  grid(12, 24) {
+  grid(0),
+  block_scale_area(0) {
 
   root = new gfx::NullDrawable;
   allocated_drawables.insert(root);
@@ -28,7 +28,7 @@ GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
   root->addDrawable(block_area_outline);
   allocated_drawables.insert(block_area_outline);
 
-  gfx::NullDrawable* block_scale_area = new gfx::NullDrawable(
+  block_scale_area = new gfx::NullDrawable(
     glm::scale(glm::mat4(), glm::vec3(1.0f / 12.0f, 1.0f / 12.0f, 1.0f)));
   block_area_outline->addDrawable(block_scale_area);
   allocated_drawables.insert(block_scale_area);
@@ -37,6 +37,10 @@ GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
   block_scale_area->addDrawable(iPiece);
   allocated_drawables.insert(iPiece);
   active_piece = iPiece;
+
+  grid = new gfx::Grid(12, 24);
+  allocated_drawables.insert(grid);
+  block_scale_area->addDrawable(grid);
 }
 
 GameUI::~GameUI() {
@@ -83,23 +87,37 @@ bool GameUI::handle_user_input() {
 
     case SDL_KEYDOWN: {
       if(sdl_event.key.keysym.sym == SDLK_LEFT) {
-	active_piece->moveLeft(&grid);
+	active_piece->moveLeft(grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_RIGHT) {
-	active_piece->moveRight(&grid);
+	active_piece->moveRight(grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_DOWN) {
-	active_piece->moveDown(&grid);
+	active_piece->moveDown(grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_UP) {
-	active_piece->rotate(&grid);
+	active_piece->rotate(grid);
       }
       break;
     }
 
     case SDL_USEREVENT: {
       if(sdl_event.user.code == UPDATE_POSITION) {
-	active_piece->moveDown(&grid);
+	if(!active_piece->moveDown(grid)) {
+	  grid->addPieceSquaresToGrid(active_piece);
+	  allocated_drawables.erase(active_piece);
+	  block_scale_area->removeDrawable(active_piece);
+	  delete active_piece;
+	  scanGridForMatches();
+	  if(isGameOver()) {
+	    is_quit = true;
+	  }
+	  else {
+	    active_piece = generateNewPiece();
+	    allocated_drawables.insert(active_piece);
+	    block_scale_area->addDrawable(active_piece);
+	  }
+	}
       }
       break;
     }
@@ -111,6 +129,18 @@ bool GameUI::handle_user_input() {
   }
 
   return !is_quit;
+}
+
+void GameUI::scanGridForMatches() {
+  
+}
+
+bool GameUI::isGameOver() {
+  return false;
+}
+
+gfx::ActivePiece* GameUI::generateNewPiece() {
+  return new gfx::PieceI(model_uniform_location, 0, 12);
 }
 
 Uint32 timer_callback(Uint32 interval, void* param) {

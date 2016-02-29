@@ -72,12 +72,6 @@ FilledSquare::FilledSquare(GLint mul, const glm::vec2& p, float hw, const glm::v
 
 FilledSquare::~FilledSquare() {}
 
-bool FilledSquare::isIntersectingWith(const FilledSquare& otherShape) const {
-  const float centerpoint_distance = glm::length(center_point - otherShape.center_point);
-  const float combined_halfwidth = half_width + otherShape.half_width;
-  return centerpoint_distance < combined_halfwidth;
-}
-
 void FilledSquare::set_position(const glm::vec2& p) {
   center_point = p;
   transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));

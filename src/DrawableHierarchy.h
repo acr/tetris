@@ -3,14 +3,14 @@
 
 #include "gl_defns.h"
 #include "gl_utils.h"
-#include <vector>
+#include <list>
 #include "TransformStack.h"
 
 namespace gfx {
 
 class DrawableHierarchy {
 protected:
-  std::vector<DrawableHierarchy*> drawables;
+  std::list<DrawableHierarchy*> drawables;
   glm::mat4 transform_matrix;
   virtual void renderSelf(const glm::mat4& xfMtx)=0;
 
@@ -18,6 +18,7 @@ public:
   virtual ~DrawableHierarchy();
   void renderHierarchy(TransformStack& transform_stack);
   void addDrawable(DrawableHierarchy* drawable);
+  void removeDrawable(DrawableHierarchy* drawable);
 };
 
 }

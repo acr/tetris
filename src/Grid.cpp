@@ -1,11 +1,23 @@
 #include "Grid.h"
+#include "ActivePiece.h"
+#include <assert.h>
 
-namespace gui {
+namespace gfx {
 
 Grid::Grid(int w, int h) :
   width(w),
   height(h) {
 
+}
+
+Grid::~Grid() {
+  for(std::set<Space>::iterator it = spaces.begin(); it != spaces.end(); ++it) {
+    delete it->element;
+  }
+}
+
+bool Grid::isSpaceOccupied(const glm::vec2& space) const {
+  return isSpaceOccupied(roundToSlot(space.x), roundToSlot(space.y));
 }
 
 bool Grid::isSpaceOccupied(int xcoord, int ycoord) const {
@@ -56,10 +68,43 @@ gfx::DrawableHierarchy* Grid::getElementAt(int x, int y) const {
   return rv;
 }
 
-bool Grid::isOutside(int x, int y) const {
-  x = abs(x);
-  y = abs(y);
-  return x >= width / 2 || y >= height / 2;
+bool Grid::isOutside(const glm::vec2& space) const {
+  int x = roundToSlot(space.x);
+  int y = roundToSlot(space.y);
+
+  bool xinvalid = x >= width / 2;
+  if(x < 0) {
+    xinvalid = x < -width / 2;
+  }
+
+  bool yinvalid = y >= height / 2;
+  if(y < 0) {
+    yinvalid = y < -height / 2;
+  }
+  return xinvalid || yinvalid;
+}
+
+int Grid::roundToSlot(float coordinate) const {
+  if(coordinate < 0) {
+    return static_cast<int>(coordinate) - 1;
+  }
+  return static_cast<int>(coordinate);
+}
+
+void Grid::addPieceSquaresToGrid(ActivePiece* p) {
+  std::vector<GridSquare*> squares;
+  p->moveSquares(squares);
+  for(std::vector<GridSquare*>::iterator it = squares.begin();
+      it != squares.end(); ++it) {
+    const glm::vec2& pos = (*it)->get_centerpoint();
+    Space s;
+    s.x = roundToSlot(pos.x);
+    s.y = roundToSlot(pos.y);
+    assert(!isSpaceOccupied(s.x, s.y));
+    s.element = *it;
+    spaces.insert(s);
+    addDrawable(*it);
+  }
 }
 
 }
