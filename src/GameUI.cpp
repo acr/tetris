@@ -93,7 +93,9 @@ bool GameUI::handle_user_input() {
 	active_piece->moveRight(grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_DOWN) {
-	active_piece->moveDown(grid);
+	if(!active_piece->moveDown(grid)) {
+	  is_quit = initNewPieceAndScanForGameEnd();
+	}
       }
       else if(sdl_event.key.keysym.sym == SDLK_UP) {
 	active_piece->rotate(grid);
@@ -104,19 +106,7 @@ bool GameUI::handle_user_input() {
     case SDL_USEREVENT: {
       if(sdl_event.user.code == UPDATE_POSITION) {
 	if(!active_piece->moveDown(grid)) {
-	  grid->addPieceSquaresToGrid(active_piece);
-	  allocated_drawables.erase(active_piece);
-	  block_scale_area->removeDrawable(active_piece);
-	  delete active_piece;
-	  scanGridForMatches();
-	  if(isGameOver()) {
-	    is_quit = true;
-	  }
-	  else {
-	    active_piece = generateNewPiece();
-	    allocated_drawables.insert(active_piece);
-	    block_scale_area->addDrawable(active_piece);
-	  }
+	  is_quit = initNewPieceAndScanForGameEnd();
 	}
       }
       break;
@@ -129,6 +119,23 @@ bool GameUI::handle_user_input() {
   }
 
   return !is_quit;
+}
+
+bool GameUI::initNewPieceAndScanForGameEnd() {
+  grid->addPieceSquaresToGrid(active_piece);
+  allocated_drawables.erase(active_piece);
+  block_scale_area->removeDrawable(active_piece);
+  delete active_piece;
+  scanGridForMatches();
+  if(isGameOver()) {
+    return true;
+  }
+  else {
+    active_piece = generateNewPiece();
+    allocated_drawables.insert(active_piece);
+    block_scale_area->addDrawable(active_piece);
+  }
+  return false;
 }
 
 void GameUI::scanGridForMatches() {

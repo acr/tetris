@@ -34,6 +34,7 @@ private:
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 
+  bool initNewPieceAndScanForGameEnd();
   bool handle_user_input();
   void scanGridForMatches();
   bool isGameOver();
