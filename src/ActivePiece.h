@@ -3,6 +3,7 @@
 
 #include "DrawableHierarchy.h"
 #include "FilledSquare.h"
+#include "Grid.h"
 #include <vector>
 
 namespace gfx {
@@ -26,11 +27,11 @@ public:
     return false;
   }
 
-  virtual void moveDown()=0;
-  virtual void moveUp()=0;
-  virtual void rotate()=0;
-  virtual void moveLeft()=0;
-  virtual void moveRight()=0;
+  virtual bool moveDown(const gui::Grid* grid)=0;
+  virtual bool moveUp(const gui::Grid* grid)=0;
+  virtual bool rotate(const gui::Grid* grid)=0;
+  virtual bool moveLeft(const gui::Grid* grid)=0;
+  virtual bool moveRight(const gui::Grid* grid)=0;
 };
 
 }

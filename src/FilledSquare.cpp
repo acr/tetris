@@ -83,4 +83,8 @@ void FilledSquare::set_position(const glm::vec2& p) {
   transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
 }    
 
+const glm::vec2& FilledSquare::get_centerpoint() const {
+  return center_point;
+}
+
 }

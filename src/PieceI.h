@@ -16,14 +16,17 @@ private:
   std::vector<HollowRectangle*> outlines;
 
   void regen_positions();
+  bool is_collision(const gui::Grid* grid) const;
+
 public:
   PieceI(GLuint mul, int _x, int _y);
   virtual ~PieceI();
-  virtual void moveDown();
-  virtual void moveUp();
-  virtual void rotate();
-  virtual void moveLeft();
-  virtual void moveRight();
+
+  virtual bool moveDown(const gui::Grid* grid);
+  virtual bool moveUp(const gui::Grid* grid);
+  virtual bool rotate(const gui::Grid* grid);
+  virtual bool moveLeft(const gui::Grid* grid);
+  virtual bool moveRight(const gui::Grid* grid);
 };
 
 }

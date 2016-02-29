@@ -25,6 +25,7 @@ public:
   virtual ~FilledSquare();
   bool isIntersectingWith(const FilledSquare& otherShape) const;
   void set_position(const glm::vec2& p);
+  const glm::vec2& get_centerpoint() const;
 };
 
 }

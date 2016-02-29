@@ -5,6 +5,7 @@
 #include "gl_utils.h"
 #include "DrawableHierarchy.h"
 #include "ActivePiece.h"
+#include "Grid.h"
 #include <SDL2/SDL_mutex.h>
 #include <SDL2/SDL_thread.h>
 #include <set>
@@ -27,6 +28,7 @@ private:
   const float block_area_height;
   const int width;
   const int height;
+  Grid grid;
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 

@@ -15,7 +15,8 @@ GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
   block_area_width(1.0f),
   block_area_height(2.0f),
   width(_width),
-  height(_height) {
+  height(_height),
+  grid(12, 24) {
 
   root = new gfx::NullDrawable;
   allocated_drawables.insert(root);
@@ -82,23 +83,23 @@ bool GameUI::handle_user_input() {
 
     case SDL_KEYDOWN: {
       if(sdl_event.key.keysym.sym == SDLK_LEFT) {
-	active_piece->moveLeft();
+	active_piece->moveLeft(&grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_RIGHT) {
-	active_piece->moveRight();
+	active_piece->moveRight(&grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_DOWN) {
-	active_piece->moveDown();
+	active_piece->moveDown(&grid);
       }
       else if(sdl_event.key.keysym.sym == SDLK_UP) {
-	active_piece->rotate();
+	active_piece->rotate(&grid);
       }
       break;
     }
 
     case SDL_USEREVENT: {
       if(sdl_event.user.code == UPDATE_POSITION) {
-	active_piece->moveDown();
+	active_piece->moveDown(&grid);
       }
       break;
     }

@@ -94,28 +94,79 @@ PieceI::~PieceI() {
   outlines.clear();
 }
 
-void PieceI::moveDown() {
+bool PieceI::moveDown(const gui::Grid* grid) {
   y--;
   regen_positions();
+  if(is_collision(grid)) {
+    y++;
+    regen_positions();
+    return false;
+  }
+  return true;
 }
 
-void PieceI::moveUp() {
+bool PieceI::moveUp(const gui::Grid* grid) {
   y++;
+  regen_positions();
+  if(is_collision(grid)) {
+    y--;
+    regen_positions();
+    return false;
+  }
+  return true;
 }
 
-void PieceI::rotate() {
+bool PieceI::rotate(const gui::Grid* grid) {
+  const int old_num_rotations = num_rotations;
   num_rotations = (num_rotations + 1) % 4;
   regen_positions();
+  if(is_collision(grid)) {
+    num_rotations = old_num_rotations;
+    regen_positions();
+    return false;
+  }
+  return true;
 }
 
-void PieceI::moveLeft() {
+bool PieceI::moveLeft(const gui::Grid* grid) {
   x--;
   regen_positions();
+  if(is_collision(grid)) {
+    x++;
+    regen_positions();
+    return false;
+  }
+  return true;
 }
 
-void PieceI::moveRight() {
+bool PieceI::moveRight(const gui::Grid* grid) {
   x++;
   regen_positions();
+  if(is_collision(grid)) {
+    x--;
+    regen_positions();
+    return false;
+  }
+  return true;
+}
+
+bool PieceI::is_collision(const gui::Grid* grid) const {
+  bool is_collision = false;
+  for(std::vector<FilledSquare*>::const_iterator it = componentParts.begin();
+      it != componentParts.end(); ++it) {
+    const glm::vec2& center_point = (*it)->get_centerpoint();
+    if(grid->isSpaceOccupied(static_cast<int>(center_point.x),
+			     static_cast<int>(center_point.y))) {
+      is_collision = true;
+      break;
+    }
+    else if(grid->isOutside(static_cast<int>(center_point.x),
+			    static_cast<int>(center_point.y))) {
+      is_collision = true;
+      break;
+    }
+  }
+  return is_collision;
 }
 
 }
