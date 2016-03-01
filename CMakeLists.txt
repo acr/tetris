@@ -13,7 +13,7 @@ add_subdirectory(ext_libs)
 include_directories(
   ${GLEW_INCLUDE}
   ${gl_utils_SOURCE_DIR}/src
+  ${FREETYPE2_INCLUDE_DIR}
   )
-
 
 add_subdirectory(src)
