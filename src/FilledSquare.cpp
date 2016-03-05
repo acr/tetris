@@ -70,7 +70,11 @@ FilledSquare::FilledSquare(GLint mul, const glm::vec2& p, float hw, const glm::v
   transform_matrix = glm::translate(glm::mat4(), glm::vec3(center_point, 0.0f));
 }
 
-FilledSquare::~FilledSquare() {}
+FilledSquare::~FilledSquare() {
+  glDeleteBuffers(1, &color_vbo);
+  glDeleteBuffers(1, &vertex_vbo);
+  glDeleteVertexArrays(1, &model_vao);
+}
 
 void FilledSquare::set_position(const glm::vec2& p) {
   center_point = p;

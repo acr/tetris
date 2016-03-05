@@ -92,6 +92,8 @@ TextRenderer::TextRenderer(GLint shader_program, const std::string& face_file_pa
   dsp::checkGL();
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
   dsp::checkGL();
+
+  // Unbind stuff
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   dsp::checkGL();
   glBindVertexArray(0);
@@ -99,6 +101,8 @@ TextRenderer::TextRenderer(GLint shader_program, const std::string& face_file_pa
 }
 
 TextRenderer::~TextRenderer() {
+  glDeleteBuffers(1, &vbo);
+  glDeleteVertexArrays(1, &vao);
 }
 
 void TextRenderer::renderText(const std::string& text,

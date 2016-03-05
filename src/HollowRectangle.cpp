@@ -81,7 +81,9 @@ HollowRectangle::HollowRectangle(GLint mul, const glm::vec2& p, float half_width
 }
 
 HollowRectangle::~HollowRectangle() {
-
+  glDeleteBuffers(1, &color_vbo);
+  glDeleteBuffers(1, &vertex_vbo);
+  glDeleteVertexArrays(1, &model_vao);
 }
 
 void HollowRectangle::set_position(const glm::vec2& p) {
