@@ -1,14 +1,16 @@
 #include "GameUI.h"
 #include "HollowRectangle.h"
 #include "PieceI.h"
+#include <iostream>
+#include <sstream>
 
 namespace gui {
 
 Uint32 timer_callback(Uint32 interval, void* param);
 
-GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
+GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   sdl_window(window),
-  model_uniform_location(mul),
+  model_mat_location(0),
   root(0),
   active_piece(0),
   block_area_width(1.0f),
@@ -16,13 +18,68 @@ GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
   width(_width),
   height(_height),
   grid(0),
-  block_scale_area(0) {
+  block_scale_area(0),
+  font_shader_program(0),
+  default_shader_program(0),
+  score(0),
+  level(0) {
+
+  {
+    dsp::NullPreLinkCallback plc;
+    if(!dsp::compile_shaders("shaders/font_shader.vert", "shaders/font_shader.frag",
+			     font_shader_program, &plc)) {
+      std::cerr << "Error compiling font shader" << std::endl;
+      return;
+    }
+
+    if(!dsp::compile_shaders("shaders/shader.vert", "shaders/shader.frag",
+			     default_shader_program, &plc)) {
+      std::cerr << "Error compiling default shader" << std::endl;
+      return;
+    }
+  }
+
+  glm::mat4 ident_mat;
+  glm::mat4 view_mat = glm::translate(glm::mat4(), glm::vec3(-0.5f, -1.0f, -3.0f));
+  glm::mat4 proj_mat = glm::perspective(
+    glm::radians(45.0f),
+    static_cast<float>(width) / static_cast<float>(height),
+    0.1f, 100.0f);
+
+  // Set initial uniforms on the font shader
+  GLint proj_mat_location = glGetUniformLocation(font_shader_program, "proj_mat");
+  dsp::checkGL();
+  GLint view_mat_location = glGetUniformLocation(font_shader_program, "view_mat");
+  dsp::checkGL();
+  glUseProgram(font_shader_program);
+  dsp::checkGL();
+  glUniformMatrix4fv(proj_mat_location, 1, GL_FALSE, glm::value_ptr(proj_mat));
+  dsp::checkGL();
+  glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, glm::value_ptr(view_mat));
+  dsp::checkGL();
+
+  // Set initial uniforms on the default shader
+  proj_mat_location = glGetUniformLocation(default_shader_program, "proj_mat");
+  dsp::checkGL();
+  model_mat_location = glGetUniformLocation(default_shader_program, "model_mat");
+  dsp::checkGL();
+  view_mat_location = glGetUniformLocation(default_shader_program, "view_mat");
+  dsp::checkGL();
+  glUseProgram(default_shader_program);
+  glUniformMatrix4fv(proj_mat_location, 1, GL_FALSE, glm::value_ptr(proj_mat));
+  dsp::checkGL();
+  glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, glm::value_ptr(view_mat));
+  dsp::checkGL();
+  glUniformMatrix4fv(model_mat_location, 1, GL_FALSE, glm::value_ptr(ident_mat));
+  dsp::checkGL();
+  dsp::printAll(default_shader_program);
+
 
   root = new gfx::NullDrawable;
   allocated_drawables.insert(root);
 
   gfx::HollowRectangle* block_area_outline = new gfx::HollowRectangle(
-    model_uniform_location, glm::vec2(0.5f, 1.0f),
+    model_mat_location, glm::vec2(0.5f, 1.0f),
     block_area_width / 2.0f, block_area_height / 2.0f,
     glm::vec3(0.0f, 1.0f, 0.0f));
   root->addDrawable(block_area_outline);
@@ -33,7 +90,7 @@ GameUI::GameUI(SDL_Window* window, GLint mul, int _width, int _height) :
   block_area_outline->addDrawable(block_scale_area);
   allocated_drawables.insert(block_scale_area);
 
-  gfx::PieceI* iPiece = new gfx::PieceI(model_uniform_location, 0, 12);
+  gfx::PieceI* iPiece = new gfx::PieceI(model_mat_location, 0, 12);
   block_scale_area->addDrawable(iPiece);
   allocated_drawables.insert(iPiece);
   active_piece = iPiece;
@@ -51,6 +108,8 @@ GameUI::~GameUI() {
 }
 
 void GameUI::run() {
+  gfx::TextRenderer textRendering(font_shader_program, "fonts/FreeMono.ttf");
+
   Uint32 update_delay_ms = 1000;
   Uint32 update_position_code = static_cast<Uint32>(UPDATE_POSITION);
   SDL_AddTimer(update_delay_ms, timer_callback, &update_position_code);
@@ -61,7 +120,11 @@ void GameUI::run() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     gfx::TransformStack ts;
+    glUseProgram(default_shader_program);
     root->renderHierarchy(ts);
+
+    glUseProgram(font_shader_program);
+    renderTextBoxes(textRendering);
 
     SDL_GL_SwapWindow(sdl_window);
     SDL_Delay(20);
@@ -147,7 +210,22 @@ bool GameUI::isGameOver() {
 }
 
 gfx::ActivePiece* GameUI::generateNewPiece() {
-  return new gfx::PieceI(model_uniform_location, 0, 12);
+  return new gfx::PieceI(model_mat_location, 0, 12);
+}
+
+void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
+  const float scale = 0.001f;
+  const glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f);
+
+  std::ostringstream scoreString;
+  scoreString << "Score: " << score;
+  textRenderer.renderText(scoreString.str(),
+			   0.0f, -0.1f, scale, color);
+
+  std::ostringstream levelString;
+  levelString << "Level: " << level;
+  textRenderer.renderText(levelString.str(),
+			   0.0f, -0.15f, scale, color);
 }
 
 Uint32 timer_callback(Uint32 interval, void* param) {

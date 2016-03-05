@@ -19,12 +19,6 @@ static const int height = 1024;
 
 using namespace gfx;
 
-class PLC : public dsp::PreLinkCallback {
-public:
-  virtual ~PLC() {}
-  virtual void preLinkCallback(GLint shader_program) { }
-};
-
 int main() {
   if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
     std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
@@ -70,39 +64,27 @@ int main() {
   glFrontFace(GL_CCW);
   dsp::checkGL();
 
-  GLint shader_program;
-  {
-    PLC plc;
-    if(!dsp::compile_shaders("shaders/shader.vert", "shaders/shader.frag",
-			     shader_program, &plc)) {
-      std::cerr << "Error compiling shader program" << std::endl;
-      return 4;
-    }
-  }
+  // Enable transparancy via blending
+  glEnable(GL_BLEND);
+  dsp::checkGL();
+  // This calculates a pixel color channel as follows:
+  // C:  The blend result for one color channel of a pixel
+  // M:  The maximum value for this channel
+  // c1: The value of the channel in the first source
+  // s1: The scale factor for the first source
+  // c2: The value of the channel in the second source
+  // s2: The scale factor for the second source
+  // C = min(M, c1 * s1 + c2 * s2)
+  // If source alpha is A, these arguments set s1 and s2 to:
+  // A, (1 - A), respectively
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  dsp::checkGL();
 
-  glm::mat4 ident_mat;
-  glm::mat4 view_mat = glm::translate(glm::mat4(), glm::vec3(-0.5f, -1.0f, -3.0f));
-  glm::mat4 proj_mat = glm::perspective(
-    glm::radians(45.0f),
-    static_cast<float>(width) / static_cast<float>(height),
-    0.1f, 100.0f);
+  // Disable byte-alignment restriction
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  dsp::checkGL();
 
-  GLint proj_mat_location = glGetUniformLocation(shader_program, "proj_mat");
-  dsp::checkGL();
-  GLint model_mat_location = glGetUniformLocation(shader_program, "model_mat");
-  dsp::checkGL();
-  GLint view_mat_location = glGetUniformLocation(shader_program, "view_mat");
-  dsp::checkGL();
-  glUseProgram(shader_program);
-  glUniformMatrix4fv(proj_mat_location, 1, GL_FALSE, glm::value_ptr(proj_mat));
-  dsp::checkGL();
-  glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, glm::value_ptr(view_mat));
-  dsp::checkGL();
-  glUniformMatrix4fv(model_mat_location, 1, GL_FALSE, glm::value_ptr(ident_mat));
-  dsp::checkGL();
-  dsp::printAll(shader_program);
-
-  gui::GameUI ui(window, model_mat_location, width, height);
+  gui::GameUI ui(window, width, height);
   ui.run();
 
   SDL_GL_DeleteContext(glContext);
