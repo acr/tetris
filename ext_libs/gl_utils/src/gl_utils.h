@@ -22,6 +22,12 @@ namespace dsp {
     virtual void preLinkCallback(GLint shader_program)=0;
   };
 
+  class NullPreLinkCallback : public PreLinkCallback {
+  public:
+    virtual ~NullPreLinkCallback() {}
+    virtual void preLinkCallback(GLint shader_program) {}
+  };
+
   bool compile_shaders(const char* vertex_shader_path, const char* fragment_shader_path,
 		       GLint& shader_program, PreLinkCallback* cb);
 }
