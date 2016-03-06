@@ -6,6 +6,8 @@
 
 namespace gui {
 
+static const Uint32 BASE_DELAY_MS = 1000;
+
 Uint32 timer_callback(Uint32 interval, void* param);
 
 GameUI::GameUI(SDL_Window* window, int _width, int _height) :
@@ -22,9 +24,13 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   font_shader_program(0),
   default_shader_program(0),
   score(0),
-  level(0),
-  num_game_updates(0),
-  last_game_update_on_tetris(0) {
+  level(1),
+  game_start_ticks(0),
+  last_clear_was_a_tetris(false),
+  mutex(0),
+  timerID(0) {
+
+  mutex = SDL_CreateMutex();
 
   {
     dsp::NullPreLinkCallback plc;
@@ -103,19 +109,23 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
 }
 
 GameUI::~GameUI() {
+  SDL_LockMutex(mutex);
+  SDL_RemoveTimer(timerID);
+
   for(std::set<gfx::DrawableHierarchy*>::iterator it = allocated_drawables.begin();
       it != allocated_drawables.end(); ++it) {
     delete *it;
   }
+  SDL_UnlockMutex(mutex);
+  SDL_DestroyMutex(mutex);
 }
 
 void GameUI::run() {
   gfx::TextRenderer textRendering(font_shader_program, "fonts/FreeMono.ttf");
 
-  Uint32 update_delay_ms = 1000;
-  Uint32 update_position_code = static_cast<Uint32>(UPDATE_POSITION);
-  SDL_AddTimer(update_delay_ms, timer_callback, &update_position_code);
-
+  timerID = SDL_AddTimer(BASE_DELAY_MS, timer_callback, this);
+  SDL_LockMutex(mutex);
+  game_start_ticks = SDL_GetTicks();
   do {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, width, height);
@@ -129,8 +139,33 @@ void GameUI::run() {
     renderTextBoxes(textRendering);
 
     SDL_GL_SwapWindow(sdl_window);
+    SDL_UnlockMutex(mutex);
     SDL_Delay(20);
+    SDL_LockMutex(mutex);
   } while(handle_user_input());
+  SDL_UnlockMutex(mutex);
+}
+
+Uint32 GameUI::timerCallback() {
+  SDL_LockMutex(mutex);
+
+  level = 1 + (SDL_GetTicks() - game_start_ticks) / 30000;
+
+  {
+    std::ostringstream ost;
+    ost << "SDLT: " << SDL_GetTicks();
+    debugText = ost.str();
+  }
+
+  SDL_UnlockMutex(mutex);
+
+  SDL_Event event;
+  SDL_memset(&event, 0, sizeof(event));
+  event.type = SDL_USEREVENT;
+  event.user.code = UPDATE_POSITION;
+  SDL_PushEvent(&event);
+
+  return BASE_DELAY_MS / level;
 }
 
 bool GameUI::handle_user_input() {
@@ -173,7 +208,6 @@ bool GameUI::handle_user_input() {
 
     case SDL_USEREVENT: {
       if(sdl_event.user.code == UPDATE_POSITION) {
-	num_game_updates++;
 	if(!active_piece->moveDown(grid)) {
 	  is_quit = initNewPieceAndScanForGameEnd();
 	}
@@ -336,20 +370,18 @@ void GameUI::scanGridForMatches() {
   // 80 points per Tetris
   // 10 points per regular level clear
   if(isTetris) {
-    if(last_game_update_on_tetris != 0) {
-      score += 160;
+    if(last_clear_was_a_tetris) {
+      incrementScoreByLevel(1600);
       notificationText = "B2B Tetris!";
     }
     else {
+      incrementScoreByLevel(80);
       notificationText = "Tetris!";
-      score += 80;
     }
-    last_game_update_on_tetris = num_game_updates;
+    notification_start_ticks = SDL_GetTicks();
   }
-  else {
-    last_game_update_on_tetris = 0;
-  }
-  score += numFullLevelsCleared * 10;
+  last_clear_was_a_tetris = isTetris;
+  incrementScoreByLevel(numFullLevelsCleared * 10);
 }
 
 bool GameUI::isGameOver() {
@@ -358,6 +390,20 @@ bool GameUI::isGameOver() {
 
 gfx::ActivePiece* GameUI::generateNewPiece() {
   return new gfx::PieceI(model_mat_location, 0, 12);
+}
+
+void GameUI::incrementScoreByLevel(int basePoints) {
+  float multiplier = 1.0f;
+  if(level < 5) {
+    multiplier = level * 1.5f;
+  }
+  else if(level < 10) {
+    multiplier = level * 1.3;
+  }
+  else {
+    multiplier = level * 1.2;
+  }
+  score += static_cast<int>(multiplier * basePoints);
 }
 
 void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
@@ -374,23 +420,27 @@ void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
   textRenderer.renderText(levelString.str(),
 			   0.0f, -0.15f, scale, color);
 
-  if(num_game_updates > 0 &&
-     num_game_updates - last_game_update_on_tetris < 2) {
+  if(SDL_GetTicks() > 0 &&
+     SDL_GetTicks() - notification_start_ticks < 2000) {
     textRenderer.renderText(notificationText,
 			    0.4f,
 			    2.1f,
 			    scale * 2.0f,
 			    color);
   }
+
+  if(debugText.size() > 0) {
+    textRenderer.renderText(debugText,
+			    0.7f,
+			    -0.1f,
+			    scale,
+			    color);
+  }
 }
 
 Uint32 timer_callback(Uint32 interval, void* param) {
-  SDL_Event event;
-  SDL_memset(&event, 0, sizeof(event));
-  event.type = SDL_USEREVENT;
-  event.user.code = *reinterpret_cast<Uint32*>(param);
-  SDL_PushEvent(&event);
-  return interval;
+  GameUI* instance = reinterpret_cast<GameUI*>(param);
+  return instance->timerCallback();
 }
 
 }

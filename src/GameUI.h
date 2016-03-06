@@ -36,9 +36,13 @@ private:
   GLint default_shader_program;
   int score;
   int level;
-  int num_game_updates;
-  int last_game_update_on_tetris;
+  Uint32 game_start_ticks;
+  bool last_clear_was_a_tetris;
+  Uint32 notification_start_ticks;
   std::string notificationText;
+  SDL_mutex* mutex;
+  SDL_TimerID timerID;
+  std::string debugText;
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 
@@ -48,11 +52,14 @@ private:
   bool isGameOver();
   gfx::ActivePiece* generateNewPiece();
   void renderTextBoxes(gfx::TextRenderer& textRenderer);
+  void incrementScoreByLevel(int basePoints);
 
 public:
   GameUI(SDL_Window* window, int _width, int _height);
   ~GameUI();
   void run();
+
+  Uint32 timerCallback();
 };
 
 }
