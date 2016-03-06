@@ -12,7 +12,7 @@ Grid::Grid(int w, int h) :
 
 Grid::~Grid() {
   for(std::set<Space>::iterator it = spaces.begin(); it != spaces.end(); ++it) {
-    delete it->element;
+    delete it->gridSquare;
   }
 }
 
@@ -35,43 +35,57 @@ void Grid::getFilledSpaces(std::vector<Space>& dest) const {
   }
 }
 
-bool Grid::setSpace(gfx::DrawableHierarchy* element, int x, int y) {
+void Grid::getFilledSpaces(std::set<Space>& dest) const {
+  dest = spaces;
+}
+
+bool Grid::setSpace(gfx::GridSquare* gridSquare, int x, int y) {
   if(!isSpaceOccupied(x, y)) {
     Space s;
     s.x = x;
     s.y = y;
-    s.element = element;
+    s.gridSquare = gridSquare;
+    gridSquare->set_position(glm::vec2(x + 0.5f, y + 0.5f));
     spaces.insert(s);
+    addDrawable(gridSquare);
     return true;
   }
   return false;
 }
 
-void Grid::removeSpace(int x, int y) {
+void Grid::clearSpaceAt(int x, int y) {
+  if(!isSpaceOccupied(x, y)) {
+    return;
+  }
+
+  gfx::GridSquare* gridSquare = getGridSquareAt(x, y);
+  removeDrawable(gridSquare);
+
   Space s;
   s.x = x;
   s.y = y;
   spaces.erase(s);
 }
 
-gfx::DrawableHierarchy* Grid::getElementAt(int x, int y) const {
-  gfx::DrawableHierarchy* rv(0);
+gfx::GridSquare* Grid::getGridSquareAt(int x, int y) const {
+  gfx::GridSquare* rv(0);
 
   Space s;
   s.x = x;
   s.y = y;
   std::set<Space>::const_iterator it = spaces.find(s);
   if(it != spaces.end()) {
-    rv = it->element;
+    rv = it->gridSquare;
   }
 
   return rv;
 }
 
 bool Grid::isOutside(const glm::vec2& space) const {
-  int x = roundToSlot(space.x);
-  int y = roundToSlot(space.y);
+  return isOutside(roundToSlot(space.x), roundToSlot(space.y));
+}
 
+bool Grid::isOutside(int x, int y) const {
   bool xinvalid = x >= width / 2;
   if(x < 0) {
     xinvalid = x < -width / 2;
@@ -97,13 +111,10 @@ void Grid::addPieceSquaresToGrid(ActivePiece* p) {
   for(std::vector<GridSquare*>::iterator it = squares.begin();
       it != squares.end(); ++it) {
     const glm::vec2& pos = (*it)->get_centerpoint();
-    Space s;
-    s.x = roundToSlot(pos.x);
-    s.y = roundToSlot(pos.y);
-    assert(!isSpaceOccupied(s.x, s.y));
-    s.element = *it;
-    spaces.insert(s);
-    addDrawable(*it);
+    int x = roundToSlot(pos.x);
+    int y = roundToSlot(pos.y);
+    assert(!isSpaceOccupied(x, y));
+    setSpace(*it, x, y);
   }
 }
 

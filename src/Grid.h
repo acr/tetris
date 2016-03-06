@@ -2,6 +2,7 @@
 #define GRID_H
 
 #include "DrawableHierarchy.h"
+#include "GridSquare.h"
 #include <vector>
 #include <set>
 
@@ -12,15 +13,18 @@ class ActivePiece;
 class Grid : public DrawableHierarchy {
 public:
   struct Space {
-    gfx::DrawableHierarchy* element;
+    gfx::GridSquare* gridSquare;
     int x;
     int y;
 
+    /**
+     * Sort in non-decreasing order by height, then by row
+     */
     bool operator<(const Space& rhs) const {
-      if(x == rhs.x) {
-	return y < rhs.y;
+      if(y == rhs.y) {
+	return x < rhs.x;
       }
-      return x < rhs.x;
+      return y < rhs.y;
     }
   };
 
@@ -40,12 +44,21 @@ public:
 
   bool isSpaceOccupied(const glm::vec2& space) const;
   bool isSpaceOccupied(int x, int y) const;
-  void getFilledSpaces(std::vector<Space>& spaces) const;
-  bool setSpace(gfx::DrawableHierarchy* element, int x, int y);
-  void removeSpace(int x, int y);
-  gfx::DrawableHierarchy* getElementAt(int x, int y) const;
+  void getFilledSpaces(std::vector<Space>& dest) const;
+  void getFilledSpaces(std::set<Space>& dest) const;
+  bool setSpace(gfx::GridSquare* gridSquare, int x, int y);
+  void clearSpaceAt(int x, int y);
+  gfx::GridSquare* getGridSquareAt(int x, int y) const;
   bool isOutside(const glm::vec2& space) const;
+  bool isOutside(int x, int y) const;
   void addPieceSquaresToGrid(ActivePiece* p);
+
+  int getWidth() const { return width; }
+  int getHeight() const { return height; }
+  int getFirstRow() const { return -height / 2; }
+  int getEndRow() const { return height / 2; }
+  int getFirstColumn() const { return -width / 2; }
+  int getEndColumn() const { return width / 2; }
 };
 
 }

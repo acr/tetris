@@ -202,7 +202,121 @@ bool GameUI::initNewPieceAndScanForGameEnd() {
 }
 
 void GameUI::scanGridForMatches() {
-  
+  std::vector<int> fullLevels;
+  do {
+    // Make a list of rows that have all columns filled
+    fullLevels.clear();
+    for(int h = grid->getFirstRow(); h < grid->getEndRow(); h++) {
+      int numOccupied = 0;
+      for(int w = grid->getFirstColumn(); w < grid->getEndColumn(); w++) {
+	if(grid->isSpaceOccupied(w, h)) {
+	  numOccupied++;
+	}
+	else {
+	  break;
+	}
+      }
+
+      if(numOccupied == grid->getWidth()) {
+	fullLevels.push_back(h);
+      }
+    }
+
+    // Scoring 1 point per grid square cleared
+    score += fullLevels.size() * grid->getWidth();
+    for(std::vector<int>::const_iterator it = fullLevels.begin();
+	it != fullLevels.end(); ++it) {
+      for(int w = grid->getFirstColumn(); w < grid->getEndColumn(); ++w) {
+	grid->clearSpaceAt(w, *it);
+      }
+    }
+
+    bool squaresMovedDownward;
+    do {
+      // Find floating clusters of squares and move them downwards until they either
+      // lie on top of another cluster, or lie at the bottom of the grid.
+      std::set<gfx::Grid::Space> unclusteredSquares;
+      grid->getFilledSpaces(unclusteredSquares);
+      auto expandCluster = [&unclusteredSquares](std::set<gfx::Grid::Space>& cluster,
+						 gfx::Grid::Space seed) -> void {
+	std::list<gfx::Grid::Space> frontier;
+	frontier.push_back(seed);
+	const int neighboorhoodCoords[] = {-1, 0, 1};
+
+	do {
+	  gfx::Grid::Space space = frontier.front();
+	  cluster.insert(space);
+	  unclusteredSquares.erase(space);
+	  frontier.pop_front();
+
+	  for(int w : neighboorhoodCoords) {
+	    for(int h : neighboorhoodCoords) {
+	      // Skip corners and the center of the 3x3 box around the space;
+	      // only consider the non-diagonal neighbors
+	      if(abs(w) == abs(h)) {
+		continue;
+	      }
+
+	      gfx::Grid::Space test = {
+		0,
+		space.x + w,
+		space.y + h
+	      };
+
+	      std::set<gfx::Grid::Space>::const_iterator it = unclusteredSquares.find(test);
+	      if(it != unclusteredSquares.end()) {
+		frontier.push_back(*it);
+	      }
+	    }
+	  }
+	} while(!frontier.empty());
+      };
+
+      std::list<std::set<gfx::Grid::Space> > clusters;
+      while(!unclusteredSquares.empty()) {
+	clusters.push_back(std::set<gfx::Grid::Space>());
+	expandCluster(clusters.back(), *unclusteredSquares.begin());
+      }
+
+      squaresMovedDownward = false;
+      for(std::list<std::set<gfx::Grid::Space> >::iterator it = clusters.begin();
+	  it != clusters.end(); ++it) {
+
+	// Test all member squares of the cluster to see if they all can move down
+	// by one square. They can move down by one square if all the following
+	// is true for every square in the cluster:
+	// 1. They do not currently lie at the bottom of the grid
+	// 2. The space below them is unoccupied, or is occupied by another member
+	//    of the same cluster
+	bool canMoveDownward = true;
+	for(std::set<gfx::Grid::Space>::iterator cit = it->begin();
+	    cit != it->end(); ++cit) {
+	  gfx::Grid::Space oneBelow = {
+	    0,
+	    cit->x,
+	    cit->y - 1
+	  };
+
+	  if(grid->isOutside(cit->x, cit->y - 1) ||
+	     (grid->isSpaceOccupied(cit->x, cit->y - 1) &&
+	      it->find(oneBelow) == it->end())) {
+	    canMoveDownward = false;
+	    break;
+	  }
+	}
+
+	if(canMoveDownward) {
+	  squaresMovedDownward = true;
+	  for(std::set<gfx::Grid::Space>::iterator cit = it->begin();
+	      cit != it->end(); ++cit) {
+	    gfx::GridSquare* gridSquare = grid->getGridSquareAt(cit->x, cit->y);
+	    grid->clearSpaceAt(cit->x, cit->y);
+	    grid->setSpace(gridSquare, cit->x, cit->y-1);
+	  }
+	}
+      }
+    } while(squaresMovedDownward);
+  } while(!fullLevels.empty());
 }
 
 bool GameUI::isGameOver() {
