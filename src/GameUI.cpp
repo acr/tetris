@@ -161,6 +161,9 @@ bool GameUI::handle_user_input() {
 	if(!active_piece->moveDown(grid)) {
 	  is_quit = initNewPieceAndScanForGameEnd();
 	}
+	else {
+	  score += 1;
+	}
       }
       else if(sdl_event.key.keysym.sym == SDLK_UP) {
 	active_piece->rotate(grid);
@@ -329,24 +332,24 @@ void GameUI::scanGridForMatches() {
   } while(!fullLevels.empty());
 
   // Scoring level clears as follows:
-  // 1600 points per BTB Tetris
-  // 800 points per Tetris
-  // 100 points per regular level clear
+  // 160 points per BTB Tetris
+  // 80 points per Tetris
+  // 10 points per regular level clear
   if(isTetris) {
     if(last_game_update_on_tetris != 0) {
-      score += 1600;
+      score += 160;
       notificationText = "B2B Tetris!";
     }
     else {
       notificationText = "Tetris!";
-      score += 800;
+      score += 80;
     }
     last_game_update_on_tetris = num_game_updates;
   }
   else {
     last_game_update_on_tetris = 0;
   }
-  score += numFullLevelsCleared * 100;
+  score += numFullLevelsCleared * 10;
 }
 
 bool GameUI::isGameOver() {
