@@ -36,6 +36,9 @@ private:
   GLint default_shader_program;
   int score;
   int level;
+  int num_game_updates;
+  int last_game_update_on_tetris;
+  std::string notificationText;
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 

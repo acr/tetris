@@ -22,7 +22,9 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   font_shader_program(0),
   default_shader_program(0),
   score(0),
-  level(0) {
+  level(0),
+  num_game_updates(0),
+  last_game_update_on_tetris(0) {
 
   {
     dsp::NullPreLinkCallback plc;
@@ -168,6 +170,7 @@ bool GameUI::handle_user_input() {
 
     case SDL_USEREVENT: {
       if(sdl_event.user.code == UPDATE_POSITION) {
+	num_game_updates++;
 	if(!active_piece->moveDown(grid)) {
 	  is_quit = initNewPieceAndScanForGameEnd();
 	}
@@ -203,6 +206,8 @@ bool GameUI::initNewPieceAndScanForGameEnd() {
 
 void GameUI::scanGridForMatches() {
   std::vector<int> fullLevels;
+  bool isTetris = false;
+  int numFullLevelsCleared = 0;
   do {
     // Make a list of rows that have all columns filled
     fullLevels.clear();
@@ -222,8 +227,13 @@ void GameUI::scanGridForMatches() {
       }
     }
 
-    // Scoring 1 point per grid square cleared
-    score += fullLevels.size() * grid->getWidth();
+    if(fullLevels.size() == 4) {
+      isTetris = true;
+    }
+    else {
+      numFullLevelsCleared += fullLevels.size();
+    }
+
     for(std::vector<int>::const_iterator it = fullLevels.begin();
 	it != fullLevels.end(); ++it) {
       for(int w = grid->getFirstColumn(); w < grid->getEndColumn(); ++w) {
@@ -317,6 +327,26 @@ void GameUI::scanGridForMatches() {
       }
     } while(squaresMovedDownward);
   } while(!fullLevels.empty());
+
+  // Scoring level clears as follows:
+  // 1600 points per BTB Tetris
+  // 800 points per Tetris
+  // 100 points per regular level clear
+  if(isTetris) {
+    if(last_game_update_on_tetris != 0) {
+      score += 1600;
+      notificationText = "B2B Tetris!";
+    }
+    else {
+      notificationText = "Tetris!";
+      score += 800;
+    }
+    last_game_update_on_tetris = num_game_updates;
+  }
+  else {
+    last_game_update_on_tetris = 0;
+  }
+  score += numFullLevelsCleared * 100;
 }
 
 bool GameUI::isGameOver() {
@@ -340,6 +370,15 @@ void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
   levelString << "Level: " << level;
   textRenderer.renderText(levelString.str(),
 			   0.0f, -0.15f, scale, color);
+
+  if(num_game_updates > 0 &&
+     num_game_updates - last_game_update_on_tetris < 2) {
+    textRenderer.renderText(notificationText,
+			    0.4f,
+			    2.1f,
+			    scale * 2.0f,
+			    color);
+  }
 }
 
 Uint32 timer_callback(Uint32 interval, void* param) {
