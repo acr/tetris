@@ -39,17 +39,17 @@ private:
   Uint32 game_start_ticks;
   bool last_clear_was_a_tetris;
   Uint32 notification_start_ticks;
-  std::string notificationText;
+  std::string notification_text;
   SDL_mutex* mutex;
-  SDL_TimerID timerID;
-  std::string debugText;
+  SDL_TimerID timer_id;
+  std::string debug_text;
+  bool is_game_over;
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 
   bool initNewPieceAndScanForGameEnd();
   bool handle_user_input();
   void scanGridForMatches();
-  bool isGameOver();
   gfx::ActivePiece* generateNewPiece();
   void renderTextBoxes(gfx::TextRenderer& textRenderer);
   void incrementScoreByLevel(int basePoints);

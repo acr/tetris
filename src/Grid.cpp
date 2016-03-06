@@ -40,7 +40,7 @@ void Grid::getFilledSpaces(std::set<Space>& dest) const {
 }
 
 bool Grid::setSpace(gfx::GridSquare* gridSquare, int x, int y) {
-  if(!isSpaceOccupied(x, y)) {
+  if(!isSpaceOccupied(x, y) && !isOutside(x, y)) {
     Space s;
     s.x = x;
     s.y = y;
@@ -105,7 +105,8 @@ int Grid::roundToSlot(float coordinate) const {
   return static_cast<int>(coordinate);
 }
 
-void Grid::addPieceSquaresToGrid(ActivePiece* p) {
+bool Grid::addPieceSquaresToGrid(ActivePiece* p) {
+  bool returnValue = true;
   std::vector<GridSquare*> squares;
   p->moveSquares(squares);
   for(std::vector<GridSquare*>::iterator it = squares.begin();
@@ -113,9 +114,11 @@ void Grid::addPieceSquaresToGrid(ActivePiece* p) {
     const glm::vec2& pos = (*it)->get_centerpoint();
     int x = roundToSlot(pos.x);
     int y = roundToSlot(pos.y);
-    assert(!isSpaceOccupied(x, y));
-    setSpace(*it, x, y);
+    if(!setSpace(*it, x, y)) {
+      returnValue = false;
+    }
   }
+  return returnValue;
 }
 
 }

@@ -28,7 +28,8 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   game_start_ticks(0),
   last_clear_was_a_tetris(false),
   mutex(0),
-  timerID(0) {
+  timer_id(0),
+  is_game_over(false) {
 
   mutex = SDL_CreateMutex();
 
@@ -110,7 +111,7 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
 
 GameUI::~GameUI() {
   SDL_LockMutex(mutex);
-  SDL_RemoveTimer(timerID);
+  SDL_RemoveTimer(timer_id);
 
   for(std::set<gfx::DrawableHierarchy*>::iterator it = allocated_drawables.begin();
       it != allocated_drawables.end(); ++it) {
@@ -123,7 +124,7 @@ GameUI::~GameUI() {
 void GameUI::run() {
   gfx::TextRenderer textRendering(font_shader_program, "fonts/FreeMono.ttf");
 
-  timerID = SDL_AddTimer(BASE_DELAY_MS, timer_callback, this);
+  timer_id = SDL_AddTimer(BASE_DELAY_MS, timer_callback, this);
   SDL_LockMutex(mutex);
   game_start_ticks = SDL_GetTicks();
   do {
@@ -154,7 +155,7 @@ Uint32 GameUI::timerCallback() {
   {
     std::ostringstream ost;
     ost << "SDLT: " << SDL_GetTicks();
-    debugText = ost.str();
+    debug_text = ost.str();
   }
 
   SDL_UnlockMutex(mutex);
@@ -225,20 +226,21 @@ bool GameUI::handle_user_input() {
 }
 
 bool GameUI::initNewPieceAndScanForGameEnd() {
-  grid->addPieceSquaresToGrid(active_piece);
-  allocated_drawables.erase(active_piece);
-  block_scale_area->removeDrawable(active_piece);
-  delete active_piece;
-  scanGridForMatches();
-  if(isGameOver()) {
-    return true;
+  if(!grid->addPieceSquaresToGrid(active_piece)) {
+    is_game_over = true;
   }
   else {
-    active_piece = generateNewPiece();
-    allocated_drawables.insert(active_piece);
-    block_scale_area->addDrawable(active_piece);
+    allocated_drawables.erase(active_piece);
+    block_scale_area->removeDrawable(active_piece);
+    delete active_piece;
+    scanGridForMatches();
+    if(!is_game_over) {
+      active_piece = generateNewPiece();
+      allocated_drawables.insert(active_piece);
+      block_scale_area->addDrawable(active_piece);
+    }
   }
-  return false;
+  return is_game_over;
 }
 
 void GameUI::scanGridForMatches() {
@@ -372,20 +374,16 @@ void GameUI::scanGridForMatches() {
   if(isTetris) {
     if(last_clear_was_a_tetris) {
       incrementScoreByLevel(1600);
-      notificationText = "B2B Tetris!";
+      notification_text = "B2B Tetris!";
     }
     else {
       incrementScoreByLevel(80);
-      notificationText = "Tetris!";
+      notification_text = "Tetris!";
     }
     notification_start_ticks = SDL_GetTicks();
   }
   last_clear_was_a_tetris = isTetris;
   incrementScoreByLevel(numFullLevelsCleared * 10);
-}
-
-bool GameUI::isGameOver() {
-  return false;
 }
 
 gfx::ActivePiece* GameUI::generateNewPiece() {
@@ -422,15 +420,15 @@ void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
 
   if(SDL_GetTicks() > 0 &&
      SDL_GetTicks() - notification_start_ticks < 2000) {
-    textRenderer.renderText(notificationText,
+    textRenderer.renderText(notification_text,
 			    0.4f,
 			    2.1f,
 			    scale * 2.0f,
 			    color);
   }
 
-  if(debugText.size() > 0) {
-    textRenderer.renderText(debugText,
+  if(debug_text.size() > 0) {
+    textRenderer.renderText(debug_text,
 			    0.7f,
 			    -0.1f,
 			    scale,

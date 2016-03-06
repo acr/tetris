@@ -51,7 +51,7 @@ public:
   gfx::GridSquare* getGridSquareAt(int x, int y) const;
   bool isOutside(const glm::vec2& space) const;
   bool isOutside(int x, int y) const;
-  void addPieceSquaresToGrid(ActivePiece* p);
+  bool addPieceSquaresToGrid(ActivePiece* p);
 
   int getWidth() const { return width; }
   int getHeight() const { return height; }
