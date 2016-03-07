@@ -15,11 +15,21 @@
 namespace gui {
 
 class GameUI {
-private:
+public:
   enum CustomEvent {
     UPDATE_POSITION,
+    KEYPRESS_UPDATE,
     NUM_CUSTOM_EVENTS
   };
+
+  enum KeyPresses {
+    LEFT,
+    RIGHT,
+    DOWN,
+    NUM_KEY_PRESSES
+  };
+
+private:
 
   SDL_Window* sdl_window;
   GLint model_mat_location;
@@ -41,9 +51,11 @@ private:
   Uint32 notification_start_ticks;
   std::string notification_text;
   SDL_mutex* mutex;
-  SDL_TimerID timer_id;
+  SDL_TimerID block_move_timer_id;
+  SDL_TimerID keypress_timer_id;
   std::string debug_text;
   bool is_game_over;
+  int keys_pressed[NUM_KEY_PRESSES];
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 
@@ -59,7 +71,7 @@ public:
   ~GameUI();
   void run();
 
-  Uint32 timerCallback();
+  Uint32 blockMoveTimerCallback();
 };
 
 }

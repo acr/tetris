@@ -1,14 +1,17 @@
 #include "GameUI.h"
 #include "HollowRectangle.h"
 #include "PieceI.h"
+#include <string.h>
 #include <iostream>
 #include <sstream>
 
 namespace gui {
 
 static const Uint32 BASE_DELAY_MS = 1000;
+static const Uint32 KEYPRESS_DELAY_MS = 60;
 
-Uint32 timer_callback(Uint32 interval, void* param);
+Uint32 block_move_timer_callback(Uint32 interval, void* param);
+Uint32 keypress_timer_callback(Uint32 interval, void* param);
 
 GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   sdl_window(window),
@@ -28,9 +31,11 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   game_start_ticks(0),
   last_clear_was_a_tetris(false),
   mutex(0),
-  timer_id(0),
+  block_move_timer_id(0),
+  keypress_timer_id(0),
   is_game_over(false) {
 
+  memset(keys_pressed, 0, sizeof(keys_pressed));
   mutex = SDL_CreateMutex();
 
   {
@@ -111,7 +116,8 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
 
 GameUI::~GameUI() {
   SDL_LockMutex(mutex);
-  SDL_RemoveTimer(timer_id);
+  SDL_RemoveTimer(block_move_timer_id);
+  SDL_RemoveTimer(keypress_timer_id);
 
   for(std::set<gfx::DrawableHierarchy*>::iterator it = allocated_drawables.begin();
       it != allocated_drawables.end(); ++it) {
@@ -124,7 +130,8 @@ GameUI::~GameUI() {
 void GameUI::run() {
   gfx::TextRenderer textRendering(font_shader_program, "fonts/FreeMono.ttf");
 
-  timer_id = SDL_AddTimer(BASE_DELAY_MS, timer_callback, this);
+  block_move_timer_id = SDL_AddTimer(BASE_DELAY_MS, block_move_timer_callback, this);
+  keypress_timer_id = SDL_AddTimer(KEYPRESS_DELAY_MS, keypress_timer_callback, 0);
   SDL_LockMutex(mutex);
   game_start_ticks = SDL_GetTicks();
   do {
@@ -147,7 +154,7 @@ void GameUI::run() {
   SDL_UnlockMutex(mutex);
 }
 
-Uint32 GameUI::timerCallback() {
+Uint32 GameUI::blockMoveTimerCallback() {
   SDL_LockMutex(mutex);
 
   level = 1 + (SDL_GetTicks() - game_start_ticks) / 30000;
@@ -171,8 +178,9 @@ Uint32 GameUI::timerCallback() {
 
 bool GameUI::handle_user_input() {
   bool is_quit = false;
+  bool is_keypress_event = false;
   SDL_Event sdl_event;
-  while(SDL_PollEvent(&sdl_event)) {
+  while(SDL_PollEvent(&sdl_event) && !is_quit) {
     switch(sdl_event.type) {
     case SDL_QUIT: {
       is_quit = true;
@@ -183,23 +191,27 @@ bool GameUI::handle_user_input() {
       if(sdl_event.key.keysym.sym == SDLK_ESCAPE) {
 	is_quit = true;
       }
+      else if(sdl_event.key.keysym.sym == SDLK_LEFT) {
+	keys_pressed[LEFT] = 0;
+      }
+      else if(sdl_event.key.keysym.sym == SDLK_RIGHT) {
+	keys_pressed[RIGHT] = 0;
+      }
+      else if(sdl_event.key.keysym.sym == SDLK_DOWN) {
+	keys_pressed[DOWN] = 0;
+      }
       break;
     }
 
     case SDL_KEYDOWN: {
       if(sdl_event.key.keysym.sym == SDLK_LEFT) {
-	active_piece->moveLeft(grid);
+	keys_pressed[LEFT] = 1;
       }
       else if(sdl_event.key.keysym.sym == SDLK_RIGHT) {
-	active_piece->moveRight(grid);
+	keys_pressed[RIGHT] = 1;
       }
       else if(sdl_event.key.keysym.sym == SDLK_DOWN) {
-	if(!active_piece->moveDown(grid)) {
-	  is_quit = initNewPieceAndScanForGameEnd();
-	}
-	else {
-	  score += 1;
-	}
+	keys_pressed[DOWN] = 1;
       }
       else if(sdl_event.key.keysym.sym == SDLK_UP) {
 	active_piece->rotate(grid);
@@ -213,12 +225,29 @@ bool GameUI::handle_user_input() {
 	  is_quit = initNewPieceAndScanForGameEnd();
 	}
       }
+      else if(sdl_event.user.code == KEYPRESS_UPDATE) {
+	is_keypress_event = true;
+      }
       break;
     }
 
     default: {
       break;
     }
+    }
+  }
+
+  if(is_keypress_event) {
+    if(keys_pressed[DOWN] == 1) {
+      if(!active_piece->moveDown(grid)) {
+	is_quit = initNewPieceAndScanForGameEnd();
+      }
+    }
+    if(keys_pressed[LEFT] == 1) {
+      active_piece->moveLeft(grid);
+    }
+    if(keys_pressed[RIGHT] == 1) {
+      active_piece->moveRight(grid);
     }
   }
 
@@ -436,9 +465,19 @@ void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
   }
 }
 
-Uint32 timer_callback(Uint32 interval, void* param) {
+Uint32 block_move_timer_callback(Uint32 interval, void* param) {
   GameUI* instance = reinterpret_cast<GameUI*>(param);
-  return instance->timerCallback();
+  return instance->blockMoveTimerCallback();
 }
+
+Uint32 keypress_timer_callback(Uint32 interval, void* param) {
+  SDL_Event event;
+  SDL_memset(&event, 0, sizeof(event));
+  event.type = SDL_USEREVENT;
+  event.user.code = gui::GameUI::KEYPRESS_UPDATE;
+  SDL_PushEvent(&event);
+  return interval;
+}
+
 
 }
