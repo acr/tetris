@@ -16,6 +16,7 @@ Uint32 keypress_timer_callback(Uint32 interval, void* param);
 GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   sdl_window(window),
   model_mat_location(0),
+  textRenderer(0),
   root(0),
   active_piece(0),
   block_area_width(1.0f),
@@ -53,6 +54,8 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
     }
   }
 
+  textRenderer = new gfx::TextRenderer(font_shader_program, "fonts/FreeMono.ttf");
+
   glm::mat4 ident_mat;
   glm::mat4 view_mat = glm::translate(glm::mat4(), glm::vec3(-0.5f, -1.0f, -3.0f));
   glm::mat4 proj_mat = glm::perspective(
@@ -87,71 +90,39 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   glUniformMatrix4fv(model_mat_location, 1, GL_FALSE, glm::value_ptr(ident_mat));
   dsp::checkGL();
   dsp::printAll(default_shader_program);
-
-
-  root = new gfx::NullDrawable;
-  allocated_drawables.insert(root);
-
-  gfx::HollowRectangle* block_area_outline = new gfx::HollowRectangle(
-    model_mat_location, glm::vec2(0.5f, 1.0f),
-    block_area_width / 2.0f, block_area_height / 2.0f,
-    glm::vec3(0.0f, 1.0f, 0.0f));
-  root->addDrawable(block_area_outline);
-  allocated_drawables.insert(block_area_outline);
-
-  block_scale_area = new gfx::NullDrawable(
-    glm::scale(glm::mat4(), glm::vec3(1.0f / 12.0f, 1.0f / 12.0f, 1.0f)));
-  block_area_outline->addDrawable(block_scale_area);
-  allocated_drawables.insert(block_scale_area);
-
-  gfx::PieceI* iPiece = new gfx::PieceI(model_mat_location, 0, 12);
-  block_scale_area->addDrawable(iPiece);
-  allocated_drawables.insert(iPiece);
-  active_piece = iPiece;
-
-  grid = new gfx::Grid(12, 24);
-  allocated_drawables.insert(grid);
-  block_scale_area->addDrawable(grid);
 }
 
 GameUI::~GameUI() {
-  SDL_LockMutex(mutex);
-  SDL_RemoveTimer(block_move_timer_id);
-  SDL_RemoveTimer(keypress_timer_id);
-
-  for(std::set<gfx::DrawableHierarchy*>::iterator it = allocated_drawables.begin();
-      it != allocated_drawables.end(); ++it) {
-    delete *it;
-  }
-  SDL_UnlockMutex(mutex);
+  delete textRenderer;
   SDL_DestroyMutex(mutex);
 }
 
 void GameUI::run() {
-  gfx::TextRenderer textRendering(font_shader_program, "fonts/FreeMono.ttf");
-
-  block_move_timer_id = SDL_AddTimer(BASE_DELAY_MS, block_move_timer_callback, this);
-  keypress_timer_id = SDL_AddTimer(KEYPRESS_DELAY_MS, keypress_timer_callback, 0);
-  SDL_LockMutex(mutex);
-  game_start_ticks = SDL_GetTicks();
+  initSelf();
   do {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0, 0, width, height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-    gfx::TransformStack ts;
-    glUseProgram(default_shader_program);
-    root->renderHierarchy(ts);
-
-    glUseProgram(font_shader_program);
-    renderTextBoxes(textRendering);
-
-    SDL_GL_SwapWindow(sdl_window);
-    SDL_UnlockMutex(mutex);
-    SDL_Delay(20);
     SDL_LockMutex(mutex);
-  } while(handle_user_input());
-  SDL_UnlockMutex(mutex);
+    game_start_ticks = SDL_GetTicks();
+    do {
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glViewport(0, 0, width, height);
+      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+      gfx::TransformStack ts;
+      glUseProgram(default_shader_program);
+      root->renderHierarchy(ts);
+
+      glUseProgram(font_shader_program);
+      renderTextBoxes();
+
+      SDL_GL_SwapWindow(sdl_window);
+      SDL_UnlockMutex(mutex);
+      SDL_Delay(20);
+      SDL_LockMutex(mutex);
+    } while(handleUserInput());
+
+    SDL_UnlockMutex(mutex);
+  } while(is_game_over && confirmPlayAgain() && destroySelf() && initSelf());
+  destroySelf();
 }
 
 Uint32 GameUI::blockMoveTimerCallback() {
@@ -176,7 +147,7 @@ Uint32 GameUI::blockMoveTimerCallback() {
   return BASE_DELAY_MS / level;
 }
 
-bool GameUI::handle_user_input() {
+bool GameUI::handleUserInput() {
   bool is_quit = false;
   bool is_keypress_event = false;
   SDL_Event sdl_event;
@@ -242,6 +213,7 @@ bool GameUI::handle_user_input() {
       if(!active_piece->moveDown(grid)) {
 	is_quit = initNewPieceAndScanForGameEnd();
       }
+      score++;
     }
     if(keys_pressed[LEFT] == 1) {
       active_piece->moveLeft(grid);
@@ -252,6 +224,105 @@ bool GameUI::handle_user_input() {
   }
 
   return !is_quit;
+}
+
+bool GameUI::initSelf() {
+  SDL_LockMutex(mutex);
+  memset(keys_pressed, 0, sizeof(keys_pressed));
+  score = 0;
+  level = 1;
+  game_start_ticks = 0;
+  last_clear_was_a_tetris = false;
+  is_game_over = false;
+
+  root = new gfx::NullDrawable;
+  allocated_drawables.insert(root);
+
+  gfx::HollowRectangle* block_area_outline = new gfx::HollowRectangle(
+    model_mat_location, glm::vec2(0.5f, 1.0f),
+    block_area_width / 2.0f, block_area_height / 2.0f,
+    glm::vec3(0.0f, 1.0f, 0.0f));
+  root->addDrawable(block_area_outline);
+  allocated_drawables.insert(block_area_outline);
+
+  block_scale_area = new gfx::NullDrawable(
+    glm::scale(glm::mat4(), glm::vec3(1.0f / 12.0f, 1.0f / 12.0f, 1.0f)));
+  block_area_outline->addDrawable(block_scale_area);
+  allocated_drawables.insert(block_scale_area);
+
+  gfx::PieceI* iPiece = new gfx::PieceI(model_mat_location, 0, 12);
+  block_scale_area->addDrawable(iPiece);
+  allocated_drawables.insert(iPiece);
+  active_piece = iPiece;
+
+  grid = new gfx::Grid(12, 24);
+  allocated_drawables.insert(grid);
+  block_scale_area->addDrawable(grid);
+
+  block_move_timer_id = SDL_AddTimer(BASE_DELAY_MS, block_move_timer_callback, this);
+  keypress_timer_id = SDL_AddTimer(KEYPRESS_DELAY_MS, keypress_timer_callback, 0);
+  SDL_UnlockMutex(mutex);
+  return true;
+}
+
+bool GameUI::destroySelf() {
+  SDL_LockMutex(mutex);
+  SDL_RemoveTimer(block_move_timer_id);
+  SDL_RemoveTimer(keypress_timer_id);
+  block_move_timer_id = 0;
+  keypress_timer_id = 0;
+
+  for(std::set<gfx::DrawableHierarchy*>::iterator it = allocated_drawables.begin();
+      it != allocated_drawables.end(); ++it) {
+    delete *it;
+  }
+  allocated_drawables.clear();
+  root = 0;
+  block_scale_area = 0;
+  active_piece = 0;
+  grid = 0;
+  SDL_UnlockMutex(mutex);
+  return true;
+}
+
+bool GameUI::confirmPlayAgain() {
+  while(true) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0, 0, width, height);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    glUseProgram(font_shader_program);
+    std::string message = "Play again? [enter/esc]";
+    textRenderer->renderText(message, 0.0f, 1.0f, 0.001f, glm::vec3(1.0f, 0.0f, 0.0f));
+    SDL_GL_SwapWindow(sdl_window);
+
+    SDL_Event sdl_event;
+    while(SDL_PollEvent(&sdl_event)) {
+      switch(sdl_event.type) {
+      case SDL_QUIT: {
+	return false;
+      }
+
+      case SDL_KEYDOWN: {
+	if(sdl_event.key.keysym.sym == SDLK_ESCAPE) {
+	  return false;
+	}
+	else if(sdl_event.key.keysym.sym == SDLK_RETURN) {
+	  return true;
+	}
+	break;
+      }
+
+      default: {
+	break;
+      }
+      }
+    }
+
+    SDL_Delay(20);
+  }
+
+  return false;
 }
 
 bool GameUI::initNewPieceAndScanForGameEnd() {
@@ -433,35 +504,35 @@ void GameUI::incrementScoreByLevel(int basePoints) {
   score += static_cast<int>(multiplier * basePoints);
 }
 
-void GameUI::renderTextBoxes(gfx::TextRenderer& textRenderer) {
+void GameUI::renderTextBoxes() {
   const float scale = 0.001f;
   const glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f);
 
   std::ostringstream scoreString;
   scoreString << "Score: " << score;
-  textRenderer.renderText(scoreString.str(),
+  textRenderer->renderText(scoreString.str(),
 			   0.0f, -0.1f, scale, color);
 
   std::ostringstream levelString;
   levelString << "Level: " << level;
-  textRenderer.renderText(levelString.str(),
+  textRenderer->renderText(levelString.str(),
 			   0.0f, -0.15f, scale, color);
 
   if(SDL_GetTicks() > 0 &&
      SDL_GetTicks() - notification_start_ticks < 2000) {
-    textRenderer.renderText(notification_text,
-			    0.4f,
-			    2.1f,
-			    scale * 2.0f,
-			    color);
+    textRenderer->renderText(notification_text,
+			     0.4f,
+			     2.1f,
+			     scale * 2.0f,
+			     color);
   }
 
   if(debug_text.size() > 0) {
-    textRenderer.renderText(debug_text,
-			    0.7f,
-			    -0.1f,
-			    scale,
-			    color);
+    textRenderer->renderText(debug_text,
+			     0.7f,
+			     -0.1f,
+			     scale,
+			     color);
   }
 }
 

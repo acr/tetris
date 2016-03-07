@@ -34,6 +34,7 @@ private:
   SDL_Window* sdl_window;
   GLint model_mat_location;
 
+  gfx::TextRenderer* textRenderer;
   gfx::DrawableHierarchy* root;
   gfx::ActivePiece* active_piece;
   const float block_area_width;
@@ -59,11 +60,14 @@ private:
 
   std::set<gfx::DrawableHierarchy*> allocated_drawables;
 
+  bool initSelf();
+  bool destroySelf();
+  bool confirmPlayAgain();
   bool initNewPieceAndScanForGameEnd();
-  bool handle_user_input();
+  bool handleUserInput();
   void scanGridForMatches();
   gfx::ActivePiece* generateNewPiece();
-  void renderTextBoxes(gfx::TextRenderer& textRenderer);
+  void renderTextBoxes();
   void incrementScoreByLevel(int basePoints);
 
 public:
