@@ -138,7 +138,7 @@ void GameUI::run() {
 Uint32 GameUI::blockMoveTimerCallback() {
   SDL_LockMutex(mutex);
 
-  level = 1 + (SDL_GetTicks() - game_start_ticks) / 30000;
+  level = 1 + (SDL_GetTicks() - game_start_ticks) / 60000;
 
   {
     std::ostringstream ost;
@@ -301,8 +301,12 @@ bool GameUI::confirmPlayAgain() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     glUseProgram(font_shader_program);
-    std::string message = "Play again? [enter/esc]";
-    textRenderer->renderText(message, 0.0f, 1.0f, 0.001f, glm::vec3(1.0f, 0.0f, 0.0f));
+    std::ostringstream statsMsg;
+    statsMsg << "Score: " << score << " level: " << level;
+    std::ostringstream confMsg;
+    confMsg << "Play again? [enter/esc]";
+    textRenderer->renderText(statsMsg.str(), 0.0f, 1.0f, 0.001f, glm::vec3(1.0f, 0.0f, 0.0f));
+    textRenderer->renderText(confMsg.str(), 0.0f, 0.95f, 0.001f, glm::vec3(1.0f, 0.0f, 0.0f));
     SDL_GL_SwapWindow(sdl_window);
 
     SDL_Event sdl_event;
@@ -567,13 +571,13 @@ void GameUI::renderTextBoxes() {
 			     color);
   }
 
-  if(debug_text.size() > 0) {
-    textRenderer->renderText(debug_text,
-			     0.7f,
-			     -0.1f,
-			     scale,
-			     color);
-  }
+  // if(debug_text.size() > 0) {
+  //   textRenderer->renderText(debug_text,
+  // 			     0.7f,
+  // 			     -0.1f,
+  // 			     scale,
+  // 			     color);
+  // }
 }
 
 Uint32 block_move_timer_callback(Uint32 interval, void* param) {
