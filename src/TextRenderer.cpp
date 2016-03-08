@@ -7,6 +7,8 @@
 
 namespace gfx {
 
+static const FT_UInt PIXEL_SIZE = 48;
+
 TextRenderer::TextRenderer(GLint shader_program, const std::string& face_file_path) :
   vao(0),
   vbo(0),
@@ -23,7 +25,7 @@ TextRenderer::TextRenderer(GLint shader_program, const std::string& face_file_pa
     return;
   }
 
-  FT_Set_Pixel_Sizes(face, 0, 48);
+  FT_Set_Pixel_Sizes(face, 0, PIXEL_SIZE);
 
   for(GLubyte c = 0; c < 128; c++) {
     if(FT_Load_Char(face, c, FT_LOAD_RENDER) != 0) {

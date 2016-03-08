@@ -14,8 +14,8 @@
 #include <math.h>
 #include <vector>
 
-static const int width = 512;
-static const int height = 1024;
+static const int width = 256;
+static const int height = 512;
 
 using namespace gfx;
 

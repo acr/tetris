@@ -17,6 +17,8 @@ namespace gui {
 
 static const Uint32 BASE_DELAY_MS = 1000;
 static const Uint32 KEYPRESS_DELAY_MS = 60;
+static const float TEXT_SCALE = 0.002f;
+static const float TEXT_LINE_SPACING = 0.05f / 0.001f * TEXT_SCALE;
 
 Uint32 block_move_timer_callback(Uint32 interval, void* param);
 Uint32 keypress_timer_callback(Uint32 interval, void* param);
@@ -295,18 +297,26 @@ bool GameUI::destroySelf() {
 }
 
 bool GameUI::confirmPlayAgain() {
+  std::ostringstream lvlMsg;
+  lvlMsg << "Level: " << level;
+  std::ostringstream scoreMsg;
+  scoreMsg << "Score: " << score;
+  std::ostringstream confMsg;
+  confMsg << "Play again?";
+  std::ostringstream entescMsg;
+  entescMsg << "[enter/esc]";
+
   while(true) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, width, height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     glUseProgram(font_shader_program);
-    std::ostringstream statsMsg;
-    statsMsg << "Score: " << score << " level: " << level;
-    std::ostringstream confMsg;
-    confMsg << "Play again? [enter/esc]";
-    textRenderer->renderText(statsMsg.str(), 0.0f, 1.0f, 0.001f, glm::vec3(1.0f, 0.0f, 0.0f));
-    textRenderer->renderText(confMsg.str(), 0.0f, 0.95f, 0.001f, glm::vec3(1.0f, 0.0f, 0.0f));
+
+    textRenderer->renderText(lvlMsg.str(), 0.0f, 1.0f, TEXT_SCALE, glm::vec3(1.0f, 0.0f, 0.0f));
+    textRenderer->renderText(scoreMsg.str(), 0.0f, 1.0f - TEXT_LINE_SPACING, TEXT_SCALE, glm::vec3(1.0f, 0.0f, 0.0f));
+    textRenderer->renderText(confMsg.str(), 0.0f, 1.0f - 3.0f * TEXT_LINE_SPACING, TEXT_SCALE, glm::vec3(1.0f, 0.0f, 0.0f));
+    textRenderer->renderText(entescMsg.str(), 0.0f, 1.0f - 4.0f * TEXT_LINE_SPACING, TEXT_SCALE, glm::vec3(1.0f, 0.0f, 0.0f));
     SDL_GL_SwapWindow(sdl_window);
 
     SDL_Event sdl_event;
@@ -549,25 +559,25 @@ void GameUI::incrementScoreByLevel(int basePoints) {
 }
 
 void GameUI::renderTextBoxes() {
-  const float scale = 0.001f;
   const glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f);
+  const float y_offset = -0.1f;
 
   std::ostringstream scoreString;
   scoreString << "Score: " << score;
   textRenderer->renderText(scoreString.str(),
-			   0.0f, -0.1f, scale, color);
+			   0.0f, y_offset, TEXT_SCALE, color);
 
   std::ostringstream levelString;
   levelString << "Level: " << level;
   textRenderer->renderText(levelString.str(),
-			   0.0f, -0.15f, scale, color);
+			   0.0f, y_offset - TEXT_LINE_SPACING, TEXT_SCALE, color);
 
   if(SDL_GetTicks() > 0 &&
      SDL_GetTicks() - notification_start_ticks < 2000) {
     textRenderer->renderText(notification_text,
 			     0.4f,
 			     2.1f,
-			     scale * 2.0f,
+			     TEXT_SCALE * 2.0f,
 			     color);
   }
 
