@@ -2,6 +2,13 @@
 #include "HollowRectangle.h"
 #include "PieceI.h"
 #include "PieceJ.h"
+#include "PieceL.h"
+#include "PieceO.h"
+#include "PieceS.h"
+#include "PieceT.h"
+#include "PieceZ.h"
+#include <stdlib.h>
+#include <time.h>
 #include <string.h>
 #include <iostream>
 #include <sstream>
@@ -36,6 +43,8 @@ GameUI::GameUI(SDL_Window* window, int _width, int _height) :
   block_move_timer_id(0),
   keypress_timer_id(0),
   is_game_over(false) {
+
+  srand(time(0));
 
   memset(keys_pressed, 0, sizeof(keys_pressed));
   mutex = SDL_CreateMutex();
@@ -487,8 +496,38 @@ void GameUI::scanGridForMatches() {
 }
 
 gfx::ActivePiece* GameUI::generateNewPiece() {
-  // return new gfx::PieceI(model_mat_location, 0, 12);
-  return new gfx::PieceJ(model_mat_location, 0, 12);
+  switch(rand() % 7) {
+  case 0: {
+    return new gfx::PieceI(model_mat_location, 0, 12);
+  }
+
+  case 1: {
+    return new gfx::PieceJ(model_mat_location, 0, 11);
+  }
+
+  case 2: {
+    return new gfx::PieceL(model_mat_location, 0, 11);
+  }
+
+  case 3: {
+    return new gfx::PieceO(model_mat_location, 0, 11);
+  }
+
+  case 4: {
+    return new gfx::PieceS(model_mat_location, 0, 11);
+  }
+
+  case 5: {
+    return new gfx::PieceT(model_mat_location, 0, 11);
+  }
+
+  case 6: {
+    return new gfx::PieceZ(model_mat_location, 0, 11);
+  }
+  }
+
+  std::cerr << "not sure how we got here, but its not good" << std::endl;
+  return new gfx::PieceI(model_mat_location, 0, 12);
 }
 
 void GameUI::incrementScoreByLevel(int basePoints) {
