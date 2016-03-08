@@ -1,6 +1,7 @@
 #include "GameUI.h"
 #include "HollowRectangle.h"
 #include "PieceI.h"
+#include "PieceJ.h"
 #include <string.h>
 #include <iostream>
 #include <sstream>
@@ -250,10 +251,9 @@ bool GameUI::initSelf() {
   block_area_outline->addDrawable(block_scale_area);
   allocated_drawables.insert(block_scale_area);
 
-  gfx::PieceI* iPiece = new gfx::PieceI(model_mat_location, 0, 12);
-  block_scale_area->addDrawable(iPiece);
-  allocated_drawables.insert(iPiece);
-  active_piece = iPiece;
+  active_piece = generateNewPiece();
+  block_scale_area->addDrawable(active_piece);
+  allocated_drawables.insert(active_piece);
 
   grid = new gfx::Grid(12, 24);
   allocated_drawables.insert(grid);
@@ -487,7 +487,8 @@ void GameUI::scanGridForMatches() {
 }
 
 gfx::ActivePiece* GameUI::generateNewPiece() {
-  return new gfx::PieceI(model_mat_location, 0, 12);
+  // return new gfx::PieceI(model_mat_location, 0, 12);
+  return new gfx::PieceJ(model_mat_location, 0, 12);
 }
 
 void GameUI::incrementScoreByLevel(int basePoints) {

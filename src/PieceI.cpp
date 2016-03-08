@@ -32,15 +32,7 @@ void PieceI::regen_positions() {
 }
 
 PieceI::PieceI(GLuint mul, int _x, int _y) :
-  ActivePiece(mul, _x, _y) {
-  const glm::vec3 blue(0.0f, 1.0f, 1.0f);
-  // Positions are invalid here, but are fixed when regen_positions() called before returning the object
-  for(int i = 0; i < 4; ++i) {
-    GridSquare* gs = new GridSquare(mul, glm::vec2(0.0f, 0.0f), box_length / 2.0f, blue);
-    componentParts.push_back(gs);
-    addDrawable(gs);
-  }
-
+  ActivePiece(mul, _x, _y, glm::vec3(0.0f, 1.0f, 1.0f)) {
   regen_positions();
 }
 

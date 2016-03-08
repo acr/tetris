@@ -2,12 +2,19 @@
 
 namespace gfx {
 
-ActivePiece::ActivePiece(GLuint mul, int _x, int _y) :
+ActivePiece::ActivePiece(GLuint mul, int _x, int _y, const glm::vec3& color) :
   model_uniform_location(mul),
   x(_x),
   y(_y),
   num_rotations(0),
   box_length(1.0f) {
+
+  // Positions are invalid here, but are fixed when regen_positions() called before returning the object
+  for(int i = 0; i < 4; ++i) {
+    GridSquare* gs = new GridSquare(mul, glm::vec2(0.0f, 0.0f), box_length / 2.0f, color);
+    componentParts.push_back(gs);
+    addDrawable(gs);
+  }
 }
 
 void ActivePiece::renderSelf(const glm::mat4& xfMtx) {}

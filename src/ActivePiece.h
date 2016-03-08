@@ -19,7 +19,7 @@ protected:
 
   virtual void renderSelf(const glm::mat4& xfMtx);
   bool is_collision(const Grid* grid) const;
-  ActivePiece(GLuint mul, int _x, int _y);
+  ActivePiece(GLuint mul, int _x, int _y, const glm::vec3& color);
   virtual void regen_positions()=0;
 
 public:
