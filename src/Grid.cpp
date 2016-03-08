@@ -108,7 +108,7 @@ int Grid::roundToSlot(float coordinate) const {
 bool Grid::addPieceSquaresToGrid(ActivePiece* p) {
   bool returnValue = true;
   std::vector<GridSquare*> squares;
-  p->moveSquares(squares);
+  p->transferSquaresTo(squares);
   for(std::vector<GridSquare*>::iterator it = squares.begin();
       it != squares.end(); ++it) {
     const glm::vec2& pos = (*it)->get_centerpoint();
