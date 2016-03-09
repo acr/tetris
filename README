@@ -5,6 +5,10 @@
   $ cmake .
   $ make
 
+* Running
+  Run the 'nt' binary from the TL source directory, where it expects fonts in './fonts' and
+  shaders in './shaders'.
+
 * Dependencies
   SDL2
   FreeType2
