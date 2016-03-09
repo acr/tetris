@@ -1,0 +1,19 @@
+* Description
+  It is an implementation of Tetris in C++ that uses OpenGL.
+
+* Building
+  $ cmake .
+  $ make
+
+* Dependencies
+  SDL2
+  FreeType2
+  GLEW
+
+* Credits
+** SDL2
+   For handling all the window management and general UI.
+   
+** FreeType2
+   Portions of this software are copyright (c) 2016 The FreeType
+   Project (www.freetype.org).  All rights reserved.

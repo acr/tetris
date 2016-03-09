@@ -2,7 +2,7 @@ include(ExternalProject)
 
 ExternalProject_Add(
   project_freetype2
-  URL ${nt_SOURCE_DIR}/ext_libs/freetype-2.6.tar.gz
+  URL http://download.savannah.gnu.org/releases/freetype/freetype-2.6.tar.gz
   # Disable install step
   INSTALL_COMMAND ""
   )
