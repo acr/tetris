@@ -17,3 +17,6 @@
 ** FreeType2
    Portions of this software are copyright (c) 2016 The FreeType
    Project (www.freetype.org).  All rights reserved.
+
+** GLEW
+   For the useful OpenGL extension support of course.
