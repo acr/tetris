@@ -399,6 +399,7 @@ void GameUI::scanGridForMatches() {
     for(std::vector<int>::const_iterator it = fullLevels.begin();
 	it != fullLevels.end(); ++it) {
       for(int w = grid->getFirstColumn(); w < grid->getEndColumn(); ++w) {
+	delete grid->getSpaceAt(w, *it)->gridSquare;
 	grid->clearSpaceAt(w, *it);
       }
     }
@@ -407,16 +408,17 @@ void GameUI::scanGridForMatches() {
     do {
       // Find floating clusters of squares and move them downwards until they either
       // lie on top of another cluster, or lie at the bottom of the grid.
-      std::set<gfx::Grid::Space> unclusteredSquares;
+      std::unordered_set<gfx::Grid::Space*> unclusteredSquares;
       grid->getFilledSpaces(unclusteredSquares);
-      auto expandCluster = [&unclusteredSquares](std::set<gfx::Grid::Space>& cluster,
-						 gfx::Grid::Space seed) -> void {
-	std::list<gfx::Grid::Space> frontier;
+      auto expandCluster = [&unclusteredSquares](std::unordered_set<gfx::Grid::Space*>& cluster,
+						 gfx::Grid::Space* seed,
+						 gfx::Grid* grid) -> void {
+	std::list<gfx::Grid::Space*> frontier;
 	frontier.push_back(seed);
 	const int neighboorhoodCoords[] = {-1, 0, 1};
 
 	do {
-	  gfx::Grid::Space space = frontier.front();
+	  gfx::Grid::Space* space = frontier.front();
 	  cluster.insert(space);
 	  unclusteredSquares.erase(space);
 	  frontier.pop_front();
@@ -429,29 +431,27 @@ void GameUI::scanGridForMatches() {
 		continue;
 	      }
 
-	      gfx::Grid::Space test = {
-		0,
-		space.x + w,
-		space.y + h
-	      };
-
-	      std::set<gfx::Grid::Space>::const_iterator it = unclusteredSquares.find(test);
-	      if(it != unclusteredSquares.end()) {
-		frontier.push_back(*it);
+	      const int x = space->x + w;
+	      const int y = space->y + h;
+	      if(!grid->isOutside(x, y) && grid->isSpaceOccupied(x, y)) {
+		gfx::Grid::Space* s = grid->getSpaceAt(x, y);
+		if(cluster.find(s) == cluster.end()) {
+		  frontier.push_back(grid->getSpaceAt(x, y));
+		}
 	      }
 	    }
 	  }
 	} while(!frontier.empty());
       };
 
-      std::list<std::set<gfx::Grid::Space> > clusters;
+      std::list<std::unordered_set<gfx::Grid::Space*> > clusters;
       while(!unclusteredSquares.empty()) {
-	clusters.push_back(std::set<gfx::Grid::Space>());
-	expandCluster(clusters.back(), *unclusteredSquares.begin());
+	clusters.push_back(std::unordered_set<gfx::Grid::Space*>());
+	expandCluster(clusters.back(), *unclusteredSquares.begin(), grid);
       }
 
       squaresMovedDownward = false;
-      for(std::list<std::set<gfx::Grid::Space> >::iterator it = clusters.begin();
+      for(std::list<std::unordered_set<gfx::Grid::Space*> >::iterator it = clusters.begin();
 	  it != clusters.end(); ++it) {
 
 	// Test all member squares of the cluster to see if they all can move down
@@ -461,17 +461,11 @@ void GameUI::scanGridForMatches() {
 	// 2. The space below them is unoccupied, or is occupied by another member
 	//    of the same cluster
 	bool canMoveDownward = true;
-	for(std::set<gfx::Grid::Space>::iterator cit = it->begin();
+	for(std::unordered_set<gfx::Grid::Space*>::iterator cit = it->begin();
 	    cit != it->end(); ++cit) {
-	  gfx::Grid::Space oneBelow = {
-	    0,
-	    cit->x,
-	    cit->y - 1
-	  };
-
-	  if(grid->isOutside(cit->x, cit->y - 1) ||
-	     (grid->isSpaceOccupied(cit->x, cit->y - 1) &&
-	      it->find(oneBelow) == it->end())) {
+	  if(grid->isOutside((*cit)->x, (*cit)->y - 1) ||
+	     (grid->isSpaceOccupied((*cit)->x, (*cit)->y - 1) &&
+	      !grid->isSpaceOccupied((*cit)->x, (*cit)->y - 1))) {
 	    canMoveDownward = false;
 	    break;
 	  }
@@ -479,11 +473,11 @@ void GameUI::scanGridForMatches() {
 
 	if(canMoveDownward) {
 	  squaresMovedDownward = true;
-	  for(std::set<gfx::Grid::Space>::iterator cit = it->begin();
+	  for(std::unordered_set<gfx::Grid::Space*>::iterator cit = it->begin();
 	      cit != it->end(); ++cit) {
-	    gfx::GridSquare* gridSquare = grid->getGridSquareAt(cit->x, cit->y);
-	    grid->clearSpaceAt(cit->x, cit->y);
-	    grid->setSpace(gridSquare, cit->x, cit->y-1);
+	    gfx::GridSquare* gridSquare = grid->getSpaceAt((*cit)->x, (*cit)->y)->gridSquare;
+	    grid->clearSpaceAt((*cit)->x, (*cit)->y);
+	    grid->setSpace(gridSquare, (*cit)->x, (*cit)->y-1);
 	  }
 	}
       }

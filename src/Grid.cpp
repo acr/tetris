@@ -1,6 +1,7 @@
 #include "Grid.h"
 #include "ActivePiece.h"
 #include <assert.h>
+#include <string.h>
 
 namespace gfx {
 
@@ -8,12 +9,20 @@ Grid::Grid(int w, int h) :
   width(w),
   height(h) {
 
+  grid = new Space*[width * height];
+  memset(grid, 0, sizeof(Space*) * width * height);
 }
 
 Grid::~Grid() {
-  for(std::set<Space>::iterator it = spaces.begin(); it != spaces.end(); ++it) {
-    delete it->gridSquare;
+  for(int i = 0; i < width * height; i++) {
+    if(grid[i]) {
+      if(grid[i]->gridSquare != 0) {
+	delete grid[i]->gridSquare;
+      }
+      delete grid[i];
+    }
   }
+  delete [] grid;
 }
 
 bool Grid::isSpaceOccupied(const glm::vec2& space) const {
@@ -21,33 +30,28 @@ bool Grid::isSpaceOccupied(const glm::vec2& space) const {
 }
 
 bool Grid::isSpaceOccupied(int xcoord, int ycoord) const {
-  Space s;
-  s.x = xcoord;
-  s.y = ycoord;
-  return spaces.find(s) != spaces.end();
+  ycoord += height / 2;
+  xcoord += width / 2;
+  return grid[ycoord * width + xcoord] != 0;
 }
 
-void Grid::getFilledSpaces(std::vector<Space>& dest) const {
-  dest.clear();
-  for(std::set<Space>::const_iterator it = spaces.begin();
-      it != spaces.end(); ++it) {
-    dest.push_back(*it);
-  }
-}
-
-void Grid::getFilledSpaces(std::set<Space>& dest) const {
-  dest = spaces;
+void Grid::getFilledSpaces(std::unordered_set<Space*>& dest) const {
+  dest = filledSpaces;
 }
 
 bool Grid::setSpace(gfx::GridSquare* gridSquare, int x, int y) {
   if(!isSpaceOccupied(x, y) && !isOutside(x, y)) {
-    Space s;
-    s.x = x;
-    s.y = y;
-    s.gridSquare = gridSquare;
     gridSquare->set_position(glm::vec2(x + 0.5f, y + 0.5f));
-    spaces.insert(s);
+    Space* s = new Space;
+    s->gridSquare = gridSquare;
+    s->x = x;
+    s->y = y;
+
+    y += height / 2;
+    x += width / 2;
+    grid[y * width + x] = s;
     addDrawable(gridSquare);
+    filledSpaces.insert(s);
     return true;
   }
   return false;
@@ -58,27 +62,24 @@ void Grid::clearSpaceAt(int x, int y) {
     return;
   }
 
-  gfx::GridSquare* gridSquare = getGridSquareAt(x, y);
+  y += height / 2;
+  x += width / 2;
+  Space* s = grid[y * width + x];
+  filledSpaces.erase(s);
+  gfx::GridSquare* gridSquare = s->gridSquare;
+  delete s;
+  grid[y * width + x] = 0;
   removeDrawable(gridSquare);
-
-  Space s;
-  s.x = x;
-  s.y = y;
-  spaces.erase(s);
 }
 
-gfx::GridSquare* Grid::getGridSquareAt(int x, int y) const {
-  gfx::GridSquare* rv(0);
-
-  Space s;
-  s.x = x;
-  s.y = y;
-  std::set<Space>::const_iterator it = spaces.find(s);
-  if(it != spaces.end()) {
-    rv = it->gridSquare;
+Grid::Space* Grid::getSpaceAt(int x, int y) const {
+  if(!isSpaceOccupied(x, y)) {
+    return 0;
   }
 
-  return rv;
+  y += height / 2;
+  x += width / 2;
+  return grid[y * width + x];
 }
 
 bool Grid::isOutside(const glm::vec2& space) const {
@@ -86,16 +87,9 @@ bool Grid::isOutside(const glm::vec2& space) const {
 }
 
 bool Grid::isOutside(int x, int y) const {
-  bool xinvalid = x >= width / 2;
-  if(x < 0) {
-    xinvalid = x < -width / 2;
-  }
-
-  bool yinvalid = y >= height / 2;
-  if(y < 0) {
-    yinvalid = y < -height / 2;
-  }
-  return xinvalid || yinvalid;
+  y += height / 2;
+  x += width / 2;
+  return x < 0 || y < 0 || x >= width || y >= height;
 }
 
 int Grid::roundToSlot(float coordinate) const {
